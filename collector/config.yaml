@@ -1,0 +1,152 @@
+# ============================================================
+# 全球 AI 政策采集系统 配置文件
+# 所有数据源与参数集中在此管理，改源不用改代码
+# ============================================================
+
+# ---------- 全局设置 ----------
+settings:
+  # 研究时间窗起点：早于该日期的政策不入库（日期缺失的单独标记，导出到"日期待定"）
+  start_date: "2023-01-01"
+  # 请求重试次数 / 超时（秒）
+  retry: 3
+  timeout: 30
+  # 每个源的礼貌延时区间（秒），避免请求过快
+  politeness_delay: [1.0, 2.5]
+  # 并发抓取线程数
+  max_workers: 4
+  # 代理设置：留空则使用系统环境变量 HTTPS_PROXY；
+  # 也可直接填写，如 "http://127.0.0.1:7890"（Clash 默认端口）
+  proxy: ""
+  # 数据库 / 导出 / 全文目录（相对项目根目录）
+  db_path: "data/policy.sqlite"
+  export_dir: "exports"
+  fulltext_dir: "data/fulltext"
+
+# ---------- AI 关键词（只打标签，不过滤） ----------
+keywords:
+  zh: ["人工智能", "大模型", "生成式", "智能体", "多模态", "具身智能",
+       "算力", "算法", "深度学习", "机器学习", "智算", "AI"]
+  en: ["artificial intelligence", " AI ", "AI-", "-AI", "LLM", "large language model",
+       "generative AI", "foundation model", "machine learning", "deep learning",
+       "agent", "multimodal", "algorithm"]
+
+# ---------- RSS/Atom 增量源 ----------
+# needs_proxy: true 表示该源在国内直连不通，需开代理才能抓到
+rss_feeds:
+  # ===== 中国 =====
+  - name: "工信部-政策文件"
+    url: "https://wap.miit.gov.cn/api-gateway/jpaas-plugins-web-server/front/rss/getinfo?webId=8d828e408d90447786ddbe128d495e9e&columnIds=925fa8f4afd44e53818794ed96d9876e,30f92eeafcfd4685984dfb793a2c5fff"
+    jurisdiction: CN
+    jurisdiction_name: 中国
+    level: 中央
+    issuing_body: 工业和信息化部
+    policy_type: 政策文件
+    language: zh
+    enabled: true
+
+  - name: "政府政策聚合-gov-rss"
+    url: "https://cherylchenxue-star.github.io/gov-rss/rss.xml"
+    jurisdiction: CN
+    jurisdiction_name: 中国
+    level: 中央
+    issuing_body: 多部委
+    policy_type: 政策文件
+    language: zh
+    enabled: true
+
+  - name: "国家统计局-数据发布"
+    url: "https://www.stats.gov.cn/sj/zxfb/rss.xml"
+    jurisdiction: CN
+    jurisdiction_name: 中国
+    level: 中央
+    issuing_body: 国家统计局
+    policy_type: 数据发布
+    language: zh
+    enabled: true
+
+  # ===== 美国 =====
+  - name: "NIST-AI新闻"
+    url: "https://www.nist.gov/news-events/news/rss.xml"
+    jurisdiction: US
+    jurisdiction_name: 美国
+    level: 中央
+    issuing_body: NIST
+    policy_type: 新闻/标准动态
+    language: en
+    enabled: true
+
+  # ===== 欧盟 =====
+  - name: "EU-AI-Act-Tracker"
+    url: "https://artificialintelligenceact.eu/feed/"
+    jurisdiction: EU
+    jurisdiction_name: 欧盟
+    level: 超国家
+    issuing_body: 欧盟委员会
+    policy_type: 法规动态
+    language: en
+    enabled: true
+
+  - name: "欧盟数字战略"
+    url: "https://digital-strategy.ec.europa.eu/en/rss.xml"
+    jurisdiction: EU
+    jurisdiction_name: 欧盟
+    level: 超国家
+    issuing_body: 欧盟委员会
+    policy_type: 政策动态
+    language: en
+    needs_proxy: true
+    enabled: true
+
+  # ===== 英国（需代理） =====
+  - name: "UK-DSIT公告"
+    url: "https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology.atom"
+    jurisdiction: UK
+    jurisdiction_name: 英国
+    level: 中央
+    issuing_body: DSIT
+    policy_type: 政策动态
+    language: en
+    needs_proxy: true
+    enabled: true
+
+  - name: "UK-DSIT政策文件"
+    url: "https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology/policies.atom"
+    jurisdiction: UK
+    jurisdiction_name: 英国
+    level: 中央
+    issuing_body: DSIT
+    policy_type: 政策文件
+    language: en
+    needs_proxy: true
+    enabled: true
+
+# ---------- gov.cn 国务院政策文件库（回填 + 近期增量） ----------
+govcn:
+  enabled: true
+  base: "https://sousuo.www.gov.cn/search-gov/data"
+  # 检索范围：gw=国务院文件, bm=部委文件
+  collections: ["zhengcelibrary_gw", "zhengcelibrary_bm"]
+  # 检索关键词（标题检索 + 全文检索各跑一遍）
+  keywords: ["人工智能", "生成式人工智能", "大模型", "智能体"]
+  # 每页条数（接口上限约 100）
+  page_size: 100
+  # 最大翻页数（每关键词×每集合）
+  max_pages: 20
+
+# ---------- OECD.AI 政策观察站（全球回填主力，需代理） ----------
+oecd:
+  enabled: true
+  # 端点若失效，用浏览器 DevTools(Network) 访问 oecd.ai/en/dashboards/policy-initiatives
+  # 找到返回 JSON 的请求地址后替换到这里
+  endpoint: "https://oecd.ai/api/api/dashboards/policy-initiatives/"
+  # 只保留这些国家/地区（空列表=全部）。OECD 收录 70+ 国家，全收噪声较大
+  jurisdictions: ["China", "United States", "European Union", "United Kingdom",
+                  "Japan", "Korea", "Germany", "France", "Singapore", "Canada"]
+
+# ---------- 美国 Federal Register（官方 API，回填 + 增量） ----------
+federal_register:
+  enabled: true
+  base: "https://www.federalregister.gov/api/v1/documents.json"
+  terms: ["artificial intelligence", "AI"]
+  per_page: 500
+  max_pages: 40

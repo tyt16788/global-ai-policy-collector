@@ -1,0 +1,29 @@
+# ===== 采集数据：不上传主分支（Actions 增量数据提交到 data 分支）=====
+data/
+exports/
+
+# ===== 旧版本归档与个人文件 =====
+垃圾桶/
+杂毛/
+.history/
+
+# ===== 编辑器 / 系统文件 =====
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+
+# ===== Python 运行产物 =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+venv/
+.venv/
+
+# ===== 环境变量 / 日志 / 临时文件 =====
+.env
+.env.*
+*.log
+*.tmp
+~$*
