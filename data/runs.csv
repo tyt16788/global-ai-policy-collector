@@ -1,0 +1,6 @@
+﻿command,time,sources_ok,sources_failed,items_new,detail
+fulltext,2026-10-16 14:16:36,8,0,0,
+update,2026-10-16 14:23:21,5,3,94,工信部-政策文件:ok(+17); 政府政策聚合-gov-rss:ok(+0); NIST-AI新闻:ok(+0); 国家统计局-数据发布:ok(+51); EU-AI-Act-Tracker:ok(+26); UK-DSIT公告:failed(+0); 欧盟数字战略:failed(+0); UK-DSIT政策文件:failed(+0)
+backfill govcn,2026-10-16 14:28:46,16,0,1423,
+backfill federal,2026-10-16 14:29:43,2,0,1421,
+fulltext,2026-10-16 16:01:41,488,368,0,

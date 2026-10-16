@@ -1,0 +1,43 @@
+﻿check_time,source_name,url,status,detail,entries_seen,entries_new
+2026-10-16 14:16:27,NIST-AI新闻,https://www.nist.gov/news-events/news/rss.xml,ok,,40,40
+2026-10-16 14:16:27,政府政策聚合-gov-rss,https://cherylchenxue-star.github.io/gov-rss/rss.xml,ok,,11,11
+2026-10-16 14:16:27,国家统计局-数据发布,https://www.stats.gov.cn/sj/zxfb/rss.xml,ok,,500,500
+2026-10-16 14:16:27,EU-AI-Act-Tracker,https://artificialintelligenceact.eu/feed/,ok,,27,26
+2026-10-16 14:16:27,工信部-政策文件,"https://wap.miit.gov.cn/api-gateway/jpaas-plugins-web-server/front/rss/getinfo?webId=8d828e408d90447786ddbe128d495e9e&columnIds=925fa8f4afd44e53818794ed96d9876e,30f92eeafcfd4685984dfb793a2c5fff",ok,,17,17
+2026-10-16 14:16:27,欧盟数字战略,https://digital-strategy.ec.europa.eu/en/rss.xml,failed,"ConnectionError: HTTPSConnectionPool(host='digital-strategy.ec.europa.eu', port=443): Max retries exceeded with url: /en/rss.xml (Caused by ReadTimeoutError(""HTTPSConnectionPool(host='digital-strategy.ec.europa.eu', port=443): Read timed out. (read timeout=30)""))（该源需代理：请在 config.yaml settings.proxy ",0,0
+2026-10-16 14:16:27,UK-DSIT政策文件,https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology/policies.atom,failed,"ConnectionError: HTTPSConnectionPool(host='www.gov.uk', port=443): Max retries exceeded with url: /government/organisations/department-for-science-innovation-and-technology/policies.atom (Caused by ReadTimeoutError(""HTTPSConnectionPool(host='www.gov.uk', port=443): Read timed out. (read timeout=30)""",0,0
+2026-10-16 14:16:27,UK-DSIT公告,https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology.atom,failed,"ConnectionError: HTTPSConnectionPool(host='www.gov.uk', port=443): Max retries exceeded with url: /government/organisations/department-for-science-innovation-and-technology.atom (Caused by ReadTimeoutError(""HTTPSConnectionPool(host='www.gov.uk', port=443): Read timed out. (read timeout=30)""))（该源需代理：",0,0
+2026-10-16 14:20:21,政府政策聚合-gov-rss,https://cherylchenxue-star.github.io/gov-rss/rss.xml,ok,,11,0
+2026-10-16 14:20:21,工信部-政策文件,"https://wap.miit.gov.cn/api-gateway/jpaas-plugins-web-server/front/rss/getinfo?webId=8d828e408d90447786ddbe128d495e9e&columnIds=925fa8f4afd44e53818794ed96d9876e,30f92eeafcfd4685984dfb793a2c5fff",ok,,12,12
+2026-10-16 14:20:21,国家统计局-数据发布,https://www.stats.gov.cn/sj/zxfb/rss.xml,ok,,500,51
+2026-10-16 14:20:21,EU-AI-Act-Tracker,https://artificialintelligenceact.eu/feed/,ok,,27,26
+2026-10-16 14:20:21,NIST-AI新闻,https://www.nist.gov/news-events/news/rss.xml,ok,,40,0
+2026-10-16 14:20:21,UK-DSIT公告,https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology.atom,failed,"ConnectionError: HTTPSConnectionPool(host='www.gov.uk', port=443): Max retries exceeded with url: /government/organisations/department-for-science-innovation-and-technology.atom (Caused by ReadTimeoutError(""HTTPSConnectionPool(host='www.gov.uk', port=443): Read timed out. (read timeout=30)""))（该源需代理：",0,0
+2026-10-16 14:20:21,UK-DSIT政策文件,https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology/policies.atom,failed,"ConnectionError: HTTPSConnectionPool(host='www.gov.uk', port=443): Max retries exceeded with url: /government/organisations/department-for-science-innovation-and-technology/policies.atom (Caused by ReadTimeoutError(""HTTPSConnectionPool(host='www.gov.uk', port=443): Read timed out. (read timeout=30)""",0,0
+2026-10-16 14:20:21,欧盟数字战略,https://digital-strategy.ec.europa.eu/en/rss.xml,failed,"ConnectionError: HTTPSConnectionPool(host='digital-strategy.ec.europa.eu', port=443): Max retries exceeded with url: /en/rss.xml (Caused by ReadTimeoutError(""HTTPSConnectionPool(host='digital-strategy.ec.europa.eu', port=443): Read timed out. (read timeout=30)""))（该源需代理：请在 config.yaml settings.proxy ",0,0
+2026-10-16 14:23:21,工信部-政策文件,"https://wap.miit.gov.cn/api-gateway/jpaas-plugins-web-server/front/rss/getinfo?webId=8d828e408d90447786ddbe128d495e9e&columnIds=925fa8f4afd44e53818794ed96d9876e,30f92eeafcfd4685984dfb793a2c5fff",ok,,17,17
+2026-10-16 14:23:21,政府政策聚合-gov-rss,https://cherylchenxue-star.github.io/gov-rss/rss.xml,ok,,11,0
+2026-10-16 14:23:21,NIST-AI新闻,https://www.nist.gov/news-events/news/rss.xml,ok,,40,0
+2026-10-16 14:23:21,国家统计局-数据发布,https://www.stats.gov.cn/sj/zxfb/rss.xml,ok,,500,51
+2026-10-16 14:23:21,EU-AI-Act-Tracker,https://artificialintelligenceact.eu/feed/,ok,,27,26
+2026-10-16 14:23:21,UK-DSIT公告,https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology.atom,failed,"ConnectionError: HTTPSConnectionPool(host='www.gov.uk', port=443): Max retries exceeded with url: /government/organisations/department-for-science-innovation-and-technology.atom (Caused by ProtocolError('Connection aborted.', ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。', None, 10054, None)))（该源需代",0,0
+2026-10-16 14:23:21,欧盟数字战略,https://digital-strategy.ec.europa.eu/en/rss.xml,failed,"ConnectionError: HTTPSConnectionPool(host='digital-strategy.ec.europa.eu', port=443): Max retries exceeded with url: /en/rss.xml (Caused by ReadTimeoutError(""HTTPSConnectionPool(host='digital-strategy.ec.europa.eu', port=443): Read timed out. (read timeout=30)""))（该源需代理：请在 config.yaml settings.proxy ",0,0
+2026-10-16 14:23:21,UK-DSIT政策文件,https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology/policies.atom,failed,"ConnectionError: HTTPSConnectionPool(host='www.gov.uk', port=443): Max retries exceeded with url: /government/organisations/department-for-science-innovation-and-technology/policies.atom (Caused by ReadTimeoutError(""HTTPSConnectionPool(host='www.gov.uk', port=443): Read timed out. (read timeout=30)""",0,0
+2026-10-16 14:23:24,zhengcelibrary_gw|人工智能|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,1
+2026-10-16 14:23:46,zhengcelibrary_gw|人工智能|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,114
+2026-10-16 14:23:48,zhengcelibrary_gw|生成式人工智能|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-16 14:24:10,zhengcelibrary_gw|生成式人工智能|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-16 14:24:11,zhengcelibrary_gw|大模型|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-16 14:24:59,zhengcelibrary_gw|大模型|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,80
+2026-10-16 14:25:01,zhengcelibrary_gw|智能体|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-16 14:25:24,zhengcelibrary_gw|智能体|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,2
+2026-10-16 14:25:26,zhengcelibrary_bm|人工智能|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,22
+2026-10-16 14:26:16,zhengcelibrary_bm|人工智能|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,763
+2026-10-16 14:26:18,zhengcelibrary_bm|生成式人工智能|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-16 14:27:00,zhengcelibrary_bm|生成式人工智能|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-16 14:27:01,zhengcelibrary_bm|大模型|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-16 14:27:54,zhengcelibrary_bm|大模型|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,428
+2026-10-16 14:27:55,zhengcelibrary_bm|智能体|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,4
+2026-10-16 14:28:44,zhengcelibrary_bm|智能体|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,9
+2026-10-16 14:29:05,Federal Register[artificial intelligence],https://www.federalregister.gov/api/v1/documents.json,ok,,0,945
+2026-10-16 14:29:41,Federal Register[AI],https://www.federalregister.gov/api/v1/documents.json,ok,,0,476
