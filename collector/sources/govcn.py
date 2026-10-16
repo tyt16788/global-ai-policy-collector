@@ -11,7 +11,7 @@ from urllib.parse import quote
 from ..config import load_config
 from ..fetcher import get_session
 from ..normalize import strip_html, parse_date_flexible, fmt_date
-from .. import db
+from .. import store
 
 # 检索字段：标题 + 全文，两者并跑，覆盖面最大
 SEARCH_FIELDS = ["title", "content"]
@@ -95,7 +95,7 @@ def run() -> dict:
                                 from datetime import datetime
                                 if datetime.strptime(item["published_date"], "%Y-%m-%d") < start_dt:
                                     continue
-                                if db.insert_policy(item, kw_cfg) == "new":
+                                if store.insert_policy(item, kw_cfg) == "new":
                                     total_new += 1
                                     label_new += 1
                             total_pages = int(vo.get("totalpage") or 1)
@@ -106,13 +106,13 @@ def run() -> dict:
                         ok += 1
                         summary_lines.append(f"  ✅ {label}: 新增 {label_new} 条")
                         print(f"  ✅ {label}: 新增 {label_new} 条")
-                        db.record_health(label, base, "ok", "", 0, label_new)
+                        store.record_health(label, base, "ok", "", 0, label_new)
                     except Exception as e:  # noqa: BLE001
                         failed += 1
                         detail = f"{type(e).__name__}: {e}"
                         summary_lines.append(f"  ❌ {label}: {detail}")
                         print(f"  ❌ {label}: {detail}")
-                        db.record_health(label, base, "failed", detail)
+                        store.record_health(label, base, "failed", detail)
                     time.sleep(random.uniform(1.0, 2.0))
     finally:
         session.close()

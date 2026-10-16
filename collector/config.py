@@ -18,7 +18,7 @@ _DEFAULTS = {
     "politeness_delay": [1.0, 2.5],
     "max_workers": 4,
     "proxy": "",
-    "db_path": "data/policy.sqlite",
+    "master_csv": "data/policy_master.csv",
     "export_dir": "exports",
     "fulltext_dir": "data/fulltext",
 }

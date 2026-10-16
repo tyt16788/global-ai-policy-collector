@@ -9,7 +9,7 @@ import feedparser
 from ..config import load_config, get_proxy
 from ..fetcher import get_session, polite_sleep
 from ..normalize import parse_date_flexible, strip_html, guess_language, fmt_date
-from .. import db
+from .. import store
 
 
 def _entry_date(entry) -> tuple:
@@ -86,7 +86,7 @@ def fetch_one_feed(feed_conf: dict, start_date_dt: datetime, keywords_cfg: dict,
                 "collection_method": "rss",
                 "extra": {"feed_title": feed.feed.get("title", "") if getattr(feed, "feed", None) else ""},
             }
-            if db.insert_policy(rec, keywords_cfg) == "new":
+            if store.insert_policy(rec, keywords_cfg) == "new":
                 result["new"] += 1
         return result
 
@@ -117,7 +117,7 @@ def run(check_only: bool = False) -> dict:
             polite_sleep()
 
     for r in results:
-        db.record_health(r["source"], next((f["url"] for f in feeds if f["name"] == r["source"]), ""),
+        store.record_health(r["source"], next((f["url"] for f in feeds if f["name"] == r["source"]), ""),
                          "ok" if r["status"] == "ok" else "failed",
                          r["detail"], r["entries_seen"], r.get("new", 0))
 

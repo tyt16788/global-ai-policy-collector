@@ -11,7 +11,7 @@ import random
 from ..config import load_config
 from ..fetcher import get_session
 from ..normalize import fmt_date, parse_date_flexible
-from .. import db
+from .. import store
 
 TYPE_MAP = {
     "RULE": "最终法规",
@@ -22,8 +22,8 @@ TYPE_MAP = {
     "CORRECTION": "更正",
 }
 
-FIELDS = ["title", "html_url", "pdf_url", "publication_date", "type", "agencies",
-          "abstract", "document_number"]
+FIELDS = ["title", "html_url", "pdf_url", "raw_text_url", "publication_date", "type",
+          "agencies", "abstract", "document_number"]
 
 
 def run() -> dict:
@@ -83,11 +83,12 @@ def run() -> dict:
                             "extra": {
                                 "document_number": doc.get("document_number", ""),
                                 "pdf_url": doc.get("pdf_url", ""),
+                                "raw_text_url": doc.get("raw_text_url", ""),
                             },
                         }
                         if not rec["title"]:
                             continue
-                        if db.insert_policy(rec, kw_cfg) == "new":
+                        if store.insert_policy(rec, kw_cfg) == "new":
                             total_new += 1
                             term_new += 1
                     total_pages = int(data.get("total_pages") or 1)
@@ -98,13 +99,13 @@ def run() -> dict:
                 msg = f"  ✅ Federal Register[{term}]: 新增 {term_new} 条"
                 print(msg)
                 results.append(msg)
-                db.record_health(f"Federal Register[{term}]", base, "ok", "", 0, term_new)
+                store.record_health(f"Federal Register[{term}]", base, "ok", "", 0, term_new)
             except Exception as e:  # noqa: BLE001
                 detail = f"{type(e).__name__}: {e}"
                 msg = f"  ❌ Federal Register[{term}]: {detail}"
                 print(msg)
                 results.append(msg)
-                db.record_health(f"Federal Register[{term}]", base, "failed", detail)
+                store.record_health(f"Federal Register[{term}]", base, "failed", detail)
             time.sleep(random.uniform(1.0, 2.0))
     finally:
         session.close()

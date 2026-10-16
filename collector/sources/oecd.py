@@ -10,7 +10,7 @@
 from ..config import load_config, get_proxy
 from ..fetcher import http_get
 from ..normalize import parse_date_flexible, fmt_date, guess_language, strip_html
-from .. import db
+from .. import store
 
 # OECD 国家/地区名 → (代码, 中文名, 层级)
 JURISDICTION_MAP = {
@@ -106,7 +106,7 @@ def run() -> dict:
         detail = f"{type(e).__name__}: {e}"
         hint = "" if get_proxy() else "（OECD 需代理：请开 Clash 后在 config.yaml settings.proxy 填写或设置 HTTPS_PROXY）"
         print(f"  ❌ OECD.AI: {detail}{hint}")
-        db.record_health("OECD.AI政策观察站", o["endpoint"], "failed", detail + hint)
+        store.record_health("OECD.AI政策观察站", o["endpoint"], "failed", detail + hint)
         return {"ok": 0, "failed": 1, "new": 0, "results": [f"  ❌ {detail}{hint}"]}
 
     items = _find_initiative_list(payload)
@@ -125,10 +125,10 @@ def run() -> dict:
             from datetime import datetime
             if datetime.strptime(rec["published_date"], "%Y-%m-%d") < start_dt:
                 continue
-        if db.insert_policy(rec, kw_cfg) == "new":
+        if store.insert_policy(rec, kw_cfg) == "new":
             total_new += 1
 
     msg = f"  ✅ OECD.AI: 获取 {len(items)} 条，入库 {total_new} 条（按国家筛选跳过 {skipped_country} 条）"
     print(msg)
-    db.record_health("OECD.AI政策观察站", o["endpoint"], "ok", f"原始{len(items)}条", len(items), total_new)
+    store.record_health("OECD.AI政策观察站", o["endpoint"], "ok", f"原始{len(items)}条", len(items), total_new)
     return {"ok": 1, "failed": 0, "new": total_new, "results": [msg]}
