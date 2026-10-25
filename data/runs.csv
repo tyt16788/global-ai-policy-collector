@@ -44,3 +44,8 @@ backfill govcn,2026-10-24 05:38:28,16,0,2,
 backfill federal,2026-10-24 05:38:39,2,0,6,
 backfill oecd,2026-10-24 05:38:40,0,1,0,
 fulltext,2026-10-24 05:39:08,17,28,0,
+update,2026-10-25 05:49:28,6,2,0,政府政策聚合-gov-rss:ok(+0); NIST-AI新闻:ok(+0); 欧盟数字战略:failed(+0); UK-DSIT公告:ok(+0); UK-DSIT政策文件:failed(+0); EU-AI-Act-Tracker:ok(+0); 工信部-政策文件:ok(+0); 国家统计局-数据发布:ok(+0)
+backfill govcn,2026-10-25 05:55:19,16,0,0,
+backfill federal,2026-10-25 05:55:29,2,0,0,
+backfill oecd,2026-10-25 05:55:31,0,1,0,
+fulltext,2026-10-25 05:55:51,0,28,0,
