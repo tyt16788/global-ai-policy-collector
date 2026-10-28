@@ -338,3 +338,30 @@
 2026-10-27 06:11:30,Federal Register[artificial intelligence],https://www.federalregister.gov/api/v1/documents.json,ok,,0,0
 2026-10-27 06:11:35,Federal Register[AI],https://www.federalregister.gov/api/v1/documents.json,ok,,0,0
 2026-10-27 06:11:38,OECD.AI政策观察站,https://oecd.ai/api/api/dashboards/policy-initiatives/,failed,HTTPError: 404 Client Error: Not Found for url: https://oecd.ai/en/api/api/dashboards/policy-initiatives/（OECD 需代理：请开 Clash 后在 config.yaml settings.proxy 填写或设置 HTTPS_PROXY）,0,0
+2026-10-28 06:43:35,政府政策聚合-gov-rss,https://cherylchenxue-star.github.io/gov-rss/rss.xml,ok,,11,0
+2026-10-28 06:43:35,NIST-AI新闻,https://www.nist.gov/news-events/news/rss.xml,ok,,40,1
+2026-10-28 06:43:35,欧盟数字战略,https://digital-strategy.ec.europa.eu/en/rss.xml,failed,HTTPError: 403 Client Error: Forbidden for url: https://digital-strategy.ec.europa.eu/en/rss.xml（该源需代理：请在 config.yaml settings.proxy 填写或设置 HTTPS_PROXY 环境变量后重试）,0,0
+2026-10-28 06:43:35,UK-DSIT公告,https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology.atom,ok,,20,2
+2026-10-28 06:43:35,工信部-政策文件,"https://wap.miit.gov.cn/api-gateway/jpaas-plugins-web-server/front/rss/getinfo?webId=8d828e408d90447786ddbe128d495e9e&columnIds=925fa8f4afd44e53818794ed96d9876e,30f92eeafcfd4685984dfb793a2c5fff",ok,,17,0
+2026-10-28 06:43:35,EU-AI-Act-Tracker,https://artificialintelligenceact.eu/feed/,ok,,27,0
+2026-10-28 06:43:35,UK-DSIT政策文件,https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology/policies.atom,failed,HTTPError: 406 Client Error: Not Acceptable for url: https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology/policies.atom（该源需代理：请在 config.yaml settings.proxy 填写或设置 HTTPS_PROXY 环境变量后重试）,0,0
+2026-10-28 06:43:35,国家统计局-数据发布,https://www.stats.gov.cn/sj/zxfb/rss.xml,ok,,500,0
+2026-10-28 06:43:39,zhengcelibrary_gw|人工智能|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:44:06,zhengcelibrary_gw|人工智能|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:44:08,zhengcelibrary_gw|生成式人工智能|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:44:31,zhengcelibrary_gw|生成式人工智能|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:44:33,zhengcelibrary_gw|大模型|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:45:27,zhengcelibrary_gw|大模型|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:45:29,zhengcelibrary_gw|智能体|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:45:54,zhengcelibrary_gw|智能体|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:45:57,zhengcelibrary_bm|人工智能|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:47:04,zhengcelibrary_bm|人工智能|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:47:06,zhengcelibrary_bm|生成式人工智能|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:48:01,zhengcelibrary_bm|生成式人工智能|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:48:03,zhengcelibrary_bm|大模型|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:49:05,zhengcelibrary_bm|大模型|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:49:07,zhengcelibrary_bm|智能体|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:50:16,zhengcelibrary_bm|智能体|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-10-28 06:50:23,Federal Register[artificial intelligence],https://www.federalregister.gov/api/v1/documents.json,ok,,0,1
+2026-10-28 06:50:27,Federal Register[AI],https://www.federalregister.gov/api/v1/documents.json,ok,,0,2
+2026-10-28 06:50:31,OECD.AI政策观察站,https://oecd.ai/api/api/dashboards/policy-initiatives/,failed,HTTPError: 404 Client Error: Not Found for url: https://oecd.ai/en/api/api/dashboards/policy-initiatives/（OECD 需代理：请开 Clash 后在 config.yaml settings.proxy 填写或设置 HTTPS_PROXY）,0,0
