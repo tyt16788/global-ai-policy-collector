@@ -1,0 +1,30 @@
+﻿check_time,source_name,url,status,detail,entries_seen,entries_new
+2026-10-18 15:52:03,OpenAI-Blog,https://openai.com/news/rss.xml,ok,,1299,1076
+2026-10-18 15:53:35,GoogleDeepMind-Blog,https://deepmind.google/blog/rss.xml,failed,"ConnectionError: HTTPSConnectionPool(host='deepmind.google', port=443): Max retries exceeded with url: /blog/rss.xml (Caused by ProtocolError('Connection aborted.', ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。', None, 10054, None)))",0,0
+2026-10-18 15:53:38,NVIDIA-Blog,https://blogs.nvidia.com/feed/,ok,,18,15
+2026-10-18 15:54:24,Anthropic-News,https://www.anthropic.com/news,ok,,11,11
+2026-10-18 15:54:30,OpenAI-Blog,https://openai.com/news/rss.xml,ok,,1299,0
+2026-10-18 15:56:02,GoogleDeepMind-Blog,https://deepmind.google/blog/rss.xml,failed,"ConnectionError: HTTPSConnectionPool(host='deepmind.google', port=443): Max retries exceeded with url: /blog/rss.xml (Caused by ProtocolError('Connection aborted.', ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。', None, 10054, None)))",0,0
+2026-10-18 15:56:04,NVIDIA-Blog,https://blogs.nvidia.com/feed/,ok,,18,0
+2026-10-18 15:56:24,Anthropic-News,https://www.anthropic.com/news,ok,,11,0
+2026-10-18 15:56:38,OpenAI-Blog,https://openai.com/news/rss.xml,ok,,1299,0
+2026-10-18 15:58:05,OpenAI-Blog,https://openai.com/news/rss.xml,ok,,1299,0
+2026-10-18 15:58:26,GoogleDeepMind-Blog,https://deepmind.google/blog/rss.xml,ok,,100,100
+2026-10-18 15:58:51,NVIDIA-Blog,https://blogs.nvidia.com/feed/,failed,"ConnectionError: HTTPSConnectionPool(host='blogs.nvidia.com', port=443): Max retries exceeded with url: /feed/ (Caused by ProtocolError('Connection aborted.', ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。', None, 10054, None)))",0,0
+2026-10-18 15:58:53,Anthropic-News,https://www.anthropic.com/news,ok,,11,0
+2026-10-18 16:20:04,OpenAI-Blog,https://openai.com/news/rss.xml,ok,,1299,0
+2026-10-18 16:20:05,GoogleDeepMind-Blog,https://deepmind.google/blog/rss.xml,ok,,100,0
+2026-10-18 16:20:07,NVIDIA-Blog,https://blogs.nvidia.com/feed/,ok,,18,0
+2026-10-18 16:20:09,Anthropic-News,https://www.anthropic.com/news,ok,,11,0
+2026-10-18 16:21:49,OpenAI-Blog,https://openai.com/news/rss.xml,ok,,1299,0
+2026-10-18 16:21:50,GoogleDeepMind-Blog,https://deepmind.google/blog/rss.xml,ok,,100,0
+2026-10-18 16:21:52,NVIDIA-Blog,https://blogs.nvidia.com/feed/,ok,,18,0
+2026-10-18 16:21:56,Anthropic-News,https://www.anthropic.com/news,ok,,11,0
+2026-10-18 16:54:38,Meta-Newsroom,https://about.fb.com/news/feed/,ok,,10,10
+2026-10-18 16:54:43,Microsoft-Research-Blog,https://www.microsoft.com/en-us/research/feed/,ok,,10,10
+2026-10-18 16:54:49,OpenAI-Blog,https://openai.com/news/rss.xml,ok,,1299,0
+2026-10-18 16:54:50,GoogleDeepMind-Blog,https://deepmind.google/blog/rss.xml,ok,,100,0
+2026-10-18 16:55:33,NVIDIA-Blog,https://blogs.nvidia.com/feed/,failed,"ConnectionError: HTTPSConnectionPool(host='blogs.nvidia.com', port=443): Max retries exceeded with url: /feed/ (Caused by ProtocolError('Connection aborted.', ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。', None, 10054, None)))",0,0
+2026-10-18 16:55:34,Anthropic-News,https://www.anthropic.com/news,ok,,11,0
+2026-10-18 16:55:36,Meta-Newsroom,https://about.fb.com/news/feed/,ok,,10,0
+2026-10-18 16:55:40,Microsoft-Research-Blog,https://www.microsoft.com/en-us/research/feed/,ok,,10,0
