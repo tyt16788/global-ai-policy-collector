@@ -19,6 +19,8 @@ _DEFAULTS = {
     "max_workers": 4,
     "proxy": "",
     "master_csv": "data/policy_master.csv",
+    "signal_csv": "data/signal_master.csv",
+    "signal_health_csv": "data/signal_health.csv",
     "export_dir": "exports",
     "fulltext_dir": "data/fulltext",
 }

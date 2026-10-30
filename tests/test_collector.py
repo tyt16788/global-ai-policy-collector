@@ -11,6 +11,7 @@ from unittest import mock
 from collector.normalize import (normalize_url, make_guid, make_content_hash,
                                  parse_date_flexible, strip_html, guess_language, tag_ai)
 from collector import store
+from collector.sources import company_blog
 
 
 class TestNormalizeUrl(unittest.TestCase):
@@ -156,6 +157,209 @@ class TestStore(unittest.TestCase):
         self.assertEqual(s["total"], 1)
         self.assertEqual(s["by_jurisdiction"].get("CN"), 1)
         self.assertEqual(store.suspected_duplicates(), [])
+
+
+class TestCompanyBlogClassify(unittest.TestCase):
+    """信号层的分层/打标规则：治理主张 vs 技术产品。"""
+
+    def test_governance_text(self):
+        from collector.sources.company_blog import classify
+        layer, tags = classify("Our policy position on AI regulation and compliance")
+        self.assertEqual(layer, "governance")
+        self.assertIn("政策法规", tags)
+
+    def test_tech_text(self):
+        from collector.sources.company_blog import classify
+        layer, tags = classify("Introducing GPT-5 with a larger context window and a new API")
+        self.assertEqual(layer, "tech")
+        self.assertIn("模型能力", tags)
+
+    def test_empty_text_falls_back_to_tech(self):
+        from collector.sources.company_blog import classify
+        layer, tags = classify("")
+        self.assertEqual(layer, "tech")
+        self.assertEqual(tags, "其他")
+
+
+class TestArticleExtraction(unittest.TestCase):
+    def test_article_selector_drops_chrome(self):
+        from collector.sources.company_blog import extract_article
+        html = ("<html><body><nav>导航菜单</nav><article>" + "正文内容" * 80 +
+                "</article><footer>页脚</footer></body></html>")
+        text = extract_article(html, "article")
+        self.assertIn("正文内容", text)
+        self.assertNotIn("导航菜单", text)
+        self.assertNotIn("页脚", text)
+
+    def test_fallback_picks_longest_container(self):
+        from collector.sources.company_blog import extract_article
+        html = ("<html><body><div>短文本</div><div>" + "长正文" * 300 + "</div></body></html>")
+        self.assertGreater(len(extract_article(html, "article")), 200)
+
+
+class TestSignalStore(unittest.TestCase):
+    """信号表独立存储：与政策表同构 + 4 列信号属性，去重与全文状态独立。"""
+
+    def setUp(self):
+        from collector import signal_store
+        self.ss = signal_store
+        self.tmp = Path(tempfile.mkdtemp())
+        for name, filename in (("signal_path", "signal_master.csv"),
+                               ("health_path", "signal_health.csv")):
+            p = mock.patch.object(signal_store, name, return_value=self.tmp / filename)
+            p.start()
+            self.addCleanup(p.stop)
+        self.addCleanup(setattr, signal_store, "_master", None)
+        self.addCleanup(setattr, signal_store, "_guid_index", set())
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _rec(self, url="https://openai.com/index/x", title="A new model"):
+        return {"title": title, "url": url, "summary": "s", "jurisdiction": "GLOBAL",
+                "jurisdiction_name": "全球（企业信号）", "level": "企业", "issuing_body": "OpenAI",
+                "policy_type": "企业博客", "language": "en", "published_date": "2026-10-01",
+                "source_name": "OpenAI-Blog", "collection_method": "company_rss",
+                "source_type": "corporate_blog", "signal_layer": "tech",
+                "company": "OpenAI", "topic_tags": "产品发布"}
+
+    def test_insert_keeps_signal_columns_and_dedups(self):
+        self.assertEqual(self.ss.insert(self._rec()), "new")
+        self.assertEqual(self.ss.insert(self._rec()), "duplicate")
+        df = self.ss.load()
+        self.assertEqual(len(df), 1)
+        self.assertEqual(df.iloc[0]["company"], "OpenAI")
+        self.assertEqual(df.iloc[0]["signal_layer"], "tech")
+        self.assertEqual(df.iloc[0]["source_type"], "corporate_blog")
+
+    def test_fulltext_cycle(self):
+        self.ss.insert(self._rec())
+        pending = self.ss.missing_fulltext()
+        self.assertEqual(len(pending), 1)
+        self.assertTrue(self.ss.set_fulltext(pending.iloc[0]["guid"], "全文" * 200, "ok"))
+        self.assertEqual(len(self.ss.missing_fulltext()), 0)
+        self.assertEqual(self.ss.stats()["fulltext_ok"], 1)
+
+
+class TestCleanArticleText(unittest.TestCase):
+    def test_drops_boilerplate_and_keeps_body(self):
+        raw = "\n".join(["Title", "Loading…", "Share", "", "Body line one.", "Body line two."])
+        out = company_blog.clean_article_text(raw)
+        self.assertIn("Body line one.", out)
+        self.assertNotIn("Loading", out)
+        self.assertNotIn("Share", out)
+        self.assertEqual(out.splitlines()[0], "Title")
+
+    def test_collapses_spaced_out_heading(self):
+        out = company_blog.clean_article_text("C h a t G P T I m a g e s 2 . 5\n正文")
+        self.assertIn("ChatGPTImages2.5", out.replace(" ", ""))
+
+    def test_trims_related_posts_block(self):
+        body = [f"正文第 {i} 行。" for i in range(20)]
+        tail = ["Product Oct 7, 2026 GPT-6 and Intelligent UI",
+                "Company Sep 30, 2026 OpenAI extends cyber access",
+                "Product Oct 2, 2026 Something else"]
+        out = company_blog.clean_article_text("\n".join(body + tail))
+        self.assertIn("正文第 19 行。", out)
+        self.assertNotIn("Something else", out)
+
+    def test_idempotent(self):
+        raw = "A b c d e f\n正文\n\n正文"
+        once = company_blog.clean_article_text(raw)
+        self.assertEqual(once, company_blog.clean_article_text(once))
+
+
+class TestParseHumanDate(unittest.TestCase):
+    """企业博客用人类可读日期（Oct 14, 2026），此前一律解析成空。"""
+
+    def test_month_day_year_variants(self):
+        for s in ("Oct 14, 2026", "October 14, 2026", "Oct. 14, 2026",
+                  "Oct 14 2026", "14 Oct 2026", "14 October 2026"):
+            with self.subTest(raw=s):
+                self.assertEqual(parse_date_flexible(s).strftime("%Y-%m-%d"), "2026-10-14")
+
+    def test_rfc822_still_works(self):
+        self.assertEqual(
+            parse_date_flexible("Tue, 14 Oct 2026 08:30:00 GMT").strftime("%Y-%m-%d"),
+            "2026-10-14",
+        )
+
+
+class TestOecdParse(unittest.TestCase):
+    """OECD.AI 新端点（api.oecd.ai）的字段映射。"""
+
+    def test_parse_item_maps_fields(self):
+        from collector.sources import oecd
+        item = {
+            "id": 12345,
+            "englishName": "National AI Strategy",
+            "originalName": "国家人工智能战略",
+            "slug": "national-ai-strategy",
+            "description": "<p>Strategy text.</p>",
+            "website": "https://example.gov/ai-strategy",
+            "startYear": 2021,
+            "category": "Legally binding",
+            "extentBinding": "Binding",
+            "gaiinCountry": {"name": "Germany", "code": "DEU"},
+            "initiativeType": {"name": "Strategy"},
+            "tags": [{"name": "governance"}],
+        }
+        rec = oecd._parse_item(item)
+        self.assertEqual(rec["title"], "National AI Strategy")
+        self.assertEqual(rec["url"], "https://example.gov/ai-strategy")
+        self.assertEqual(rec["jurisdiction"], "DE")
+        self.assertEqual(rec["jurisdiction_name"], "德国")
+        self.assertEqual(rec["published_date"], "2021-01-01")   # 只有年份
+        self.assertTrue(rec["extra"]["year_only"])
+        self.assertEqual(rec["extra"]["country_code3"], "DEU")
+        self.assertEqual(rec["summary"], "Strategy text.")
+
+    def test_parse_item_without_website_falls_back_to_dashboard(self):
+        from collector.sources import oecd
+        rec = oecd._parse_item({"englishName": "X", "slug": "x-slug", "startYear": 2024})
+        self.assertEqual(rec["url"],
+                         "https://oecd.ai/en/dashboards/policy-initiatives/x-slug")
+
+    def test_find_list_shapes(self):
+        from collector.sources import oecd
+        self.assertEqual(len(oecd._find_initiative_list({"data": [1, 2]})), 2)
+        self.assertEqual(oecd._find_initiative_list([1, 2, 3]), [1, 2, 3])
+        self.assertEqual(oecd._find_initiative_list({"foo": 1}), [])
+
+
+class TestGovUkParse(unittest.TestCase):
+    """gov.uk 搜索结果 Atom 的标题前缀与字段映射。"""
+
+    def test_split_title_extracts_document_type(self):
+        from collector.sources import govuk
+        self.assertEqual(govuk._split_title("Policy paper: AI Regulation Bill"),
+                         ("政策文件", "AI Regulation Bill"))
+        self.assertEqual(govuk._split_title("Guidance: Using AI safely"),
+                         ("指南", "Using AI safely"))
+        # 冒号但不是已知类型 → 整串保留为标题
+        self.assertEqual(govuk._split_title("AI: what it means"),
+                         ("", "AI: what it means"))
+
+    def test_parse_entry(self):
+        from collector.sources import govuk
+        org = "department-for-science-innovation-and-technology"
+        rec = govuk._parse({
+            "title": "Policy paper: National AI Strategy",
+            "link": "https://www.gov.uk/government/publications/national-ai-strategy",
+            "updated": "2026-10-13T15:00:38Z",
+            "summary": "<p>Strategy.</p>",
+        }, org)
+        self.assertEqual(rec["title"], "National AI Strategy")
+        self.assertEqual(rec["policy_type"], "政策文件")
+        self.assertEqual(rec["published_date"], "2026-10-13")
+        self.assertEqual(rec["jurisdiction"], "UK")
+        self.assertIn("DSIT", rec["issuing_body"])
+        self.assertEqual(rec["summary"], "Strategy.")
+
+    def test_parse_entry_skips_incomplete(self):
+        from collector.sources import govuk
+        self.assertEqual(govuk._parse({"title": "只有标题"}, "x"), {})
+        self.assertEqual(govuk._parse({"link": "https://x"}, "x"), {})
 
 
 if __name__ == "__main__":

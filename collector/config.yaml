@@ -14,13 +14,16 @@ settings:
   politeness_delay: [1.0, 2.5]
   # 并发抓取线程数
   max_workers: 4
-  # 代理设置：留空则使用系统环境变量 HTTPS_PROXY；
-  # 也可直接填写，如 "http://127.0.0.1:7890"（Clash 默认端口）
-  proxy: ""
+  # 代理设置：只有 needs_proxy: true 的源会用它，其余源强制直连（见 fetcher.get_session）
+  # 2026-10-18 实测本机 Clash Verge 端口 7897；换客户端时只改这一行
+  proxy: "http://127.0.0.1:7897"
   # 数据库 / 导出 / 全文目录（相对项目根目录）
   db_path: "data/policy.sqlite"
   export_dir: "exports"
   fulltext_dir: "data/fulltext"
+  # 信号层（企业博客）独立主表：不与政策主表混表，避免国家/年份统计失真
+  signal_csv: "data/signal_master.csv"
+  signal_health_csv: "data/signal_health.csv"
 
 # ---------- AI 关键词（只打标签，不过滤） ----------
 keywords:
@@ -136,12 +139,23 @@ govcn:
 # ---------- OECD.AI 政策观察站（全球回填主力，需代理） ----------
 oecd:
   enabled: true
-  # 端点若失效，用浏览器 DevTools(Network) 访问 oecd.ai/en/dashboards/policy-initiatives
-  # 找到返回 JSON 的请求地址后替换到这里
-  endpoint: "https://oecd.ai/api/api/dashboards/policy-initiatives/"
-  # 只保留这些国家/地区（空列表=全部）。OECD 收录 70+ 国家，全收噪声较大
-  jurisdictions: ["China", "United States", "European Union", "United Kingdom",
-                  "Japan", "Korea", "Germany", "France", "Singapore", "Canada"]
+  # 2026-10-18 实测有效端点（每页 20 条，共 129 页 / 2,570 条）
+  endpoint: "https://api.oecd.ai/policy-initiatives/public"
+  # 只保留这些国家/地区（空列表 = 全部 70+ 国家）。
+  # 全收的理由：OECD 收录的都是 AI 专门政策，噪声低；跨 70 国对比正是本研究价值
+  jurisdictions: []
+
+# ---------- 英国 gov.uk（官方 Search API，需代理；原 atom 已 406） ----------
+govuk_api:
+  enabled: true
+  # DSIT=英国科学创新与技术部；BEIS 历史文件、DCMS 数字政策也一并检索
+  organisations:
+    - "department-for-science-innovation-and-technology"
+    - "department-for-business-energy-and-industrial-strategy"
+    - "department-for-culture-media-and-sport"
+  # 每个组织 × 关键词各检索一次，按链接去重（q 是全文检索，不必担心漏词）
+  keywords: ["artificial intelligence", "AI regulation", "AI safety"]
+  max_pages: 120         # 每个 org×keyword 最多翻 120 页（每页 10 条，实测可回溯到 2023）
 
 # ---------- 美国 Federal Register（官方 API，回填 + 增量） ----------
 federal_register:
@@ -150,3 +164,69 @@ federal_register:
   terms: ["artificial intelligence", "AI"]
   per_page: 500
   max_pages: 40
+
+# ---------- 六大科技巨头官方博客（信号层，写 data/signal_master.csv） ----------
+# needs_proxy: true 的源，只有它们会走 settings.proxy，其余源强制直连
+#   （避免"为了采 Meta 而把 gov.cn/工信部 一起带出代理"的风险）
+# enabled: false = 挂起（当前网络下直连不通且暂不采集）
+# mode: rss = 官方 feed；html = 无 feed，解析列表页
+# article_selector: 正文容器 CSS 选择器，取不到会自动退化为"最长文本容器"
+company_blogs:
+  - name: "OpenAI-Blog"
+    company: OpenAI
+    mode: rss
+    feed_url: "https://openai.com/news/rss.xml"
+    blog_url: "https://openai.com/news/"
+    language: en
+    article_selector: "article"
+    rate_limit: 2.5        # OpenAI 对高频请求返回 403 Cloudflare 挑战，放慢到 2.5s/条
+    enabled: true          # 2026-10-18 实测 200，1,299 条，最早 2015
+
+  - name: "GoogleDeepMind-Blog"
+    company: Google DeepMind
+    mode: rss
+    feed_url: "https://deepmind.google/blog/rss.xml"
+    blog_url: "https://deepmind.google/blog/"
+    language: en
+    article_selector: "article"
+    enabled: true          # 15:30 实测 200/100 条；16:20 起 TLS 重置，需重试或代理
+
+  - name: "NVIDIA-Blog"
+    company: NVIDIA
+    mode: rss
+    feed_url: "https://blogs.nvidia.com/feed/"
+    blog_url: "https://blogs.nvidia.com/"
+    language: en
+    article_selector: "article"
+    ai_filter: true        # NVIDIA 博客含大量游戏/显卡消费内容，只留 AI 相关
+    enabled: true          # 实测 200，18 条，全为 2026
+
+  - name: "Anthropic-News"
+    company: Anthropic
+    mode: html
+    list_url: "https://www.anthropic.com/news"
+    link_pattern: '/news/[a-z0-9\-]+$'
+    language: en
+    article_selector: "article"
+    enabled: true          # 官方无 RSS（/rss.xml 404），解析列表页
+
+  # ---- 以下两家必须走代理（needs_proxy: true），且换成了实测可用的替代源 ----
+  - name: "Meta-Newsroom"
+    company: Meta
+    mode: rss
+    feed_url: "https://about.fb.com/news/feed/"
+    blog_url: "https://about.fb.com/news/"
+    language: en
+    article_selector: "article"
+    needs_proxy: true
+    enabled: true          # ai.meta.com/blog 连代理也 400，改用 Meta Newsroom 官方 feed（实测 200）
+
+  - name: "Microsoft-Research-Blog"
+    company: Microsoft
+    mode: rss
+    feed_url: "https://www.microsoft.com/en-us/research/feed/"
+    blog_url: "https://www.microsoft.com/en-us/research/blog/"
+    language: en
+    article_selector: "article"
+    needs_proxy: true
+    enabled: true          # blogs.microsoft.com 经代理仍 403 Cloudflare，改用 MS Research 官方 feed（实测 200）

@@ -22,6 +22,10 @@ def run() -> dict:
         f"**全文进度：已抓 {s['fulltext_ok']} / 待抓与待重试 {s['total'] - s['fulltext_ok']}"
         f"（其中失败待重试 {s['fulltext_failed']}）**",
         "",
+        f"> 全文来源拆分：政府/官方原文 **{s['fulltext_ok_original']}** 条，"
+        f"OECD 官方英文概述 **{s['fulltext_ok_external']}** 条（非政府原文，引用时需注明），"
+        f"仅短摘兜底 **{s['fulltext_desc_only']}** 条（不计入已抓）",
+        "",
         "## 按国家/地区", "", "| 国家代码 | 条数 |", "|---|---|",
     ]
     for k, v in s["by_jurisdiction"].items():

@@ -48,7 +48,8 @@ def fetch_one_feed(feed_conf: dict, start_date_dt: datetime, keywords_cfg: dict,
               "needs_proxy": bool(feed_conf.get("needs_proxy"))}
 
     try:
-        session = get_session()
+        # 代理按源隔离：只有 needs_proxy 的源走代理，其余强制直连
+        session = get_session(force_proxy=bool(feed_conf.get("needs_proxy")))
         try:
             resp = session.get(url, timeout=load_config()["settings"]["timeout"],
                                headers={"User-Agent": "Mozilla/5.0"})
@@ -98,12 +99,18 @@ def fetch_one_feed(feed_conf: dict, start_date_dt: datetime, keywords_cfg: dict,
         return result
 
 
-def run(check_only: bool = False) -> dict:
-    """主入口：并发抓取所有启用的 RSS 源，写健康记录，返回汇总。"""
+def run(check_only: bool = False, only_proxy: bool = False) -> dict:
+    """主入口：并发抓取所有启用的 RSS 源，写健康记录，返回汇总。
+
+    only_proxy=True 时只跑 needs_proxy 的源——配合 `settings.proxy`，
+    做到"只在采需代理的站点时才开代理"，避免国内源被一起带出代理。
+    """
     cfg = load_config()
     start_dt = cfg["settings"]["start_date_dt"]
     kw = cfg["_keywords"]
     feeds = [f for f in (cfg.get("rss_feeds") or []) if f.get("enabled", True)]
+    if only_proxy:
+        feeds = [f for f in feeds if f.get("needs_proxy")]
 
     results = []
     with ThreadPoolExecutor(max_workers=cfg["settings"]["max_workers"]) as pool:

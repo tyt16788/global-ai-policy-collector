@@ -6,6 +6,8 @@ exports/
 垃圾桶/
 杂毛/
 .history/
+_acl_reports/
+0.ipynb
 
 # ===== 编辑器 / 系统文件 =====
 .vscode/

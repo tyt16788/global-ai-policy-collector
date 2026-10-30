@@ -74,9 +74,18 @@ def extract_federal_raw(html: str) -> str:
     return soup.get_text("\n", strip=True)
 
 
+# 这些 URL 是 SPA 仪表盘，服务端不返回正文，抓了也只有壳
+_DASHBOARD_PREFIXES = (
+    "https://oecd.ai/en/dashboards/policy-initiatives",
+    "https://oecd.ai/en/dashboards",
+)
+
+
 def _crawl_one(rec: dict, session) -> tuple:
     """返回 (guid, full_text, status)。status: ok / failed:<原因>"""
     guid, url = rec["guid"], rec["url"]
+    if url.startswith(_DASHBOARD_PREFIXES):
+        return guid, "", "failed:仪表盘页面无静态正文"
     try:
         if rec["collection_method"] == "federal_register_api":
             try:
@@ -85,13 +94,13 @@ def _crawl_one(rec: dict, session) -> tuple:
                 raw_url = ""
             target = raw_url or url
             _rate_limit(_domain_of(target))
-            resp = session.get(target, timeout=25)
+            resp = session.get(target, timeout=15)
             resp.raise_for_status()
             resp.encoding = resp.encoding or "utf-8"
             text = extract_federal_raw(resp.text) if raw_url else extract_main_text(resp.text)
         else:
             _rate_limit(_domain_of(url))
-            resp = session.get(url, timeout=25)
+            resp = session.get(url, timeout=15)
             resp.raise_for_status()
             resp.encoding = resp.encoding or "utf-8"
             text = extract_main_text(resp.text)
@@ -104,6 +113,21 @@ def _crawl_one(rec: dict, session) -> tuple:
         return guid, "", f"failed:{type(e).__name__}"
 
 
+def _light_session():
+    """全文抓取专用 session：只重试 1 次，避免死链把整批拖到小时级。"""
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
+
+    session = get_session()
+    retry = Retry(total=1, backoff_factor=1,
+                  status_forcelist=[429, 500, 502, 503, 504],
+                  allowed_methods=["HEAD", "GET", "OPTIONS"])
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+
 def run(limit: int = 10_000, workers: int = 8, save_every: int = 200) -> dict:
     targets = store.records_missing_fulltext(limit=limit)
     total = len(targets)
@@ -111,7 +135,7 @@ def run(limit: int = 10_000, workers: int = 8, save_every: int = 200) -> dict:
     if total == 0:
         return {"done": 0, "failed": 0}
 
-    session = get_session()
+    session = _light_session()
     done = failed = 0
     try:
         with ThreadPoolExecutor(max_workers=workers) as pool:

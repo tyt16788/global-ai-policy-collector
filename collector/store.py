@@ -72,19 +72,42 @@ def load_master(force: bool = False) -> pd.DataFrame:
         return _master
 
 
-def save(retries: int = 3):
+def save(retries: int = 3, merge: bool = True):
     """把内存主表写回 CSV（utf-8-sig，便于 Excel 识别编码）。
 
     Windows 下若文件被其他进程（如 Excel/读脚本）占用，先写临时文件再原子替换，
     仍失败则退避重试，避免长跑任务因偶发读冲突丢数据。
+
+    merge=True 时会先读磁盘上的最新版本，把本进程没改过的行以磁盘为准
+    （按 guid 对齐），避免"长跑任务结束时整表覆盖"丢掉另一进程同时写入的数据
+    —— 2026-10-19 就发生过：fulltext 长跑 2 小时后保存，把我同时段写入的 281 条
+    OECD 概述全文整表覆盖掉了。
     """
-    global _new_since_save
+    global _new_since_save, _master
     with _lock:
         if _master is None:
             return
         path = master_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".csv.tmp")
+
+        if merge and path.exists() and path.stat().st_size > 0:
+            try:
+                disk = pd.read_csv(path, dtype=str, keep_default_na=False, encoding="utf-8-sig")
+                for col in COLUMNS:
+                    if col not in disk.columns:
+                        disk[col] = ""
+                disk = disk[COLUMNS]
+                disk_idx = disk.set_index("guid", drop=False)
+                mine_idx = _master.set_index("guid", drop=False)
+                # 磁盘有、本进程没有的行 → 补回来（别的进程新写的）
+                extra = disk_idx[~disk_idx.index.isin(mine_idx.index)]
+                # 两边都有的行 → 以本进程内存为准（它可能刚更新过全文）
+                merged = pd.concat([mine_idx, extra]) if len(extra) else mine_idx
+                _master = merged.reset_index(drop=True)
+            except Exception:  # noqa: BLE001 — 合并失败就退回整表覆盖，不阻断保存
+                pass
+
         for attempt in range(retries):
             try:
                 _master.to_csv(tmp, index=False, encoding="utf-8-sig")
@@ -161,11 +184,32 @@ def set_fulltext(guid: str, text: str, status: str = "ok"):
     return True
 
 
+def patch_extra(guid: str, extra: dict):
+    """合并写入 extra_json 的若干键（不覆盖已有键）。"""
+    with _lock:
+        load_master()
+        idx = _master.index[_master["guid"] == guid]
+        if len(idx) == 0:
+            return False
+        try:
+            cur = json.loads(_master.loc[idx[0], "extra_json"] or "{}")
+        except json.JSONDecodeError:
+            cur = {}
+        if not isinstance(cur, dict):
+            cur = {}
+        cur.update(extra or {})
+        _master.loc[idx[0], "extra_json"] = json.dumps(cur, ensure_ascii=False)
+    return True
+
+
 def records_missing_fulltext(limit: int = 1000) -> "pd.DataFrame":
-    """fulltext_status 不是 ok 且有 url 的记录（失败的下轮自动重试）。"""
+    """fulltext_status 不以 ok 开头且有 url 的记录（失败的下轮自动重试）。
+
+    注意：`ok:oecd_overview` 这类带后缀的状态也算已抓，不再重试。
+    """
     with _lock:
         df = load_master()
-        m = (df["fulltext_status"] != "ok") & (df["url"] != "")
+        m = (~df["fulltext_status"].str.startswith("ok")) & (df["url"] != "")
         return df.loc[m, ["guid", "url", "collection_method", "extra_json"]].head(limit).copy()
 
 
@@ -174,11 +218,20 @@ def stats() -> dict:
         df = load_master()
     total = len(df)
     dated = df[df["published_date"] != ""]
+    status = df["fulltext_status"].fillna("")
+    desc_only = status == "ok:oecd_desc_only"
+    external = status == "ok:oecd_overview"
+    original = status == "ok"
+    # "有可用正文" = 政府原文 + OECD 官方概述；只有短摘兜底的不算
+    usable = (original | external)
     return {
         "total": total,
         "no_date": int((df["published_date"] == "").sum()),
-        "fulltext_ok": int((df["fulltext_status"] == "ok").sum()),
-        "fulltext_failed": int((df["fulltext_status"].str.startswith("failed")).sum()),
+        "fulltext_ok": int(usable.sum()),
+        "fulltext_ok_original": int(original.sum()),
+        "fulltext_ok_external": int(external.sum()),
+        "fulltext_desc_only": int(desc_only.sum()),
+        "fulltext_failed": int(status.str.startswith("failed").sum()),
         "by_jurisdiction": df["jurisdiction"].replace("", "未知").value_counts().to_dict(),
         "by_year": dated["published_date"].str[:4].value_counts().sort_index().to_dict(),
         "by_method": df["collection_method"].replace("", "未知").value_counts().to_dict(),

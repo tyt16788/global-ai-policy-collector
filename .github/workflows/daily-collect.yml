@@ -1,4 +1,4 @@
-# 每日增量采集：更新政策库并提交到 data 分支
+# 每日增量采集：更新政策库 + 企业信号库，并提交到 data 分支
 # - main 分支只放代码；data/policy_master.csv（含全文列）与 exports/ 由本 workflow 维护到 data 分支
 # - GitHub 云端在墙外，OECD/UK 等源无需代理即可访问
 # - cron 为 UTC 时间：01:00 UTC = 北京时间 09:00
@@ -29,7 +29,7 @@ jobs:
         with:
           ref: data
           path: data-branch
-        continue-on-error: true   # data 分支不存在时不阻塞
+        continue-on-error: true   # data 分支不存在时不阻断
 
       - name: 安装 Python
         uses: actions/setup-python@v5
@@ -51,6 +51,11 @@ jobs:
           else
             echo "data 分支无主表，将新建"
           fi
+          if [ -f data-branch/data/signal_master.csv ]; then
+            cp data-branch/data/signal_master.csv data/signal_master.csv
+            cp data-branch/data/signal_health.csv data/ 2>/dev/null || true
+            echo "已恢复 data 分支的信号表"
+          fi
 
       - name: RSS 增量 + 官方接口回填
         run: |
@@ -58,13 +63,22 @@ jobs:
           python -m collector backfill govcn
           python -m collector backfill federal
           python -m collector backfill oecd
+          python -m collector backfill govuk
+
+      - name: 回填 OECD 概述正文（补 SPA 无正文的记录）
+        run: python -m collector backfill oecd-overview
+        continue-on-error: true
 
       - name: 抓取新增记录全文
         run: python -m collector fulltext --limit 200
 
+      - name: 采集六大巨头博客（信号层，含全文）
+        run: python -m collector blog --fulltext --limit 300
+        continue-on-error: true
+
       - name: 导出与报告
         run: |
-          python -m collector export
+          python -m collector export --xlsx --signals
           python -m collector report
 
       - name: 提交到 data 分支
@@ -74,16 +88,18 @@ jobs:
           cp data/policy_master.csv data-branch/data/policy_master.csv
           cp data/source_health.csv data-branch/data/ 2>/dev/null || true
           cp data/runs.csv data-branch/data/ 2>/dev/null || true
+          cp data/signal_master.csv data-branch/data/ 2>/dev/null || true
+          cp data/signal_health.csv data-branch/data/ 2>/dev/null || true
           cp exports/* data-branch/exports/ 2>/dev/null || true
           # exports 只保留最近几轮产物，防止仓库无限增长
           (cd data-branch/exports && ls -t | tail -n +10 | xargs -r rm -f)
           cd data-branch
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f data/policy_master.csv data/source_health.csv data/runs.csv exports
+          git add -f data/policy_master.csv data/source_health.csv data/runs.csv data/signal_master.csv data/signal_health.csv exports
           if git diff --cached --quiet; then
             echo "无新增数据，跳过提交"
           else
-            git commit -m "每日采集 $(date -u +%Y-%m-%d) 总量 ${rows} 条"
+            git commit -m "每日采集 $(date -u +%Y-%m-%d) 政策 ${rows} 条"
             git push
           fi
