@@ -34,3 +34,9 @@
 2026-11-13 13:58:49,Anthropic-News,https://www.anthropic.com/news,ok,,26,17
 2026-11-13 13:59:01,Meta-Newsroom,https://about.fb.com/news/feed/,failed,"ProxyError: HTTPSConnectionPool(host='about.fb.com', port=443): Max retries exceeded with url: /news/feed/ (Caused by ProxyError('Unable to connect to proxy', NewConnectionError(""HTTPSConnection(host='127.0.0.1', port=7897): Failed to establish a new connection: [Errno 111] Connection refused"")))",0,0
 2026-11-13 13:59:13,Microsoft-Research-Blog,https://www.microsoft.com/en-us/research/feed/,failed,"ProxyError: HTTPSConnectionPool(host='www.microsoft.com', port=443): Max retries exceeded with url: /en-us/research/feed/ (Caused by ProxyError('Unable to connect to proxy', NewConnectionError(""HTTPSConnection(host='127.0.0.1', port=7897): Failed to establish a new connection: [Errno 111] Connection",0,0
+2026-11-13 14:34:29,OpenAI-Blog,https://openai.com/news/rss.xml,ok,,1385,0
+2026-11-13 14:34:29,GoogleDeepMind-Blog,https://deepmind.google/blog/rss.xml,ok,,100,0
+2026-11-13 14:34:29,NVIDIA-Blog,https://blogs.nvidia.com/feed/,ok,,18,0
+2026-11-13 14:34:30,Anthropic-News,https://www.anthropic.com/news,ok,,26,0
+2026-11-13 14:34:30,Meta-Newsroom,https://about.fb.com/news/feed/,ok,,10,10
+2026-11-13 14:34:31,Microsoft-Research-Blog,https://www.microsoft.com/en-us/research/feed/,ok,,10,9

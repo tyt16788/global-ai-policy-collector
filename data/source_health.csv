@@ -69,3 +69,31 @@
 2026-11-13 13:56:09,Federal Register[AI],https://www.federalregister.gov/api/v1/documents.json,failed,"ProxyError: HTTPSConnectionPool(host='www.federalregister.gov', port=443): Max retries exceeded with url: /api/v1/documents.json?conditions%5Bterm%5D=AI&conditions%5Bpublication_date%5D%5Bgte%5D=2023-01-01&per_page=500&order=newest&page=1&fields%5B%5D=title&fields%5B%5D=html_url&fields%5B%5D=pdf_url",0,0
 2026-11-13 13:56:23,OECD.AI政策观察站,https://api.oecd.ai/policy-initiatives/public,failed,"ProxyError: HTTPSConnectionPool(host='api.oecd.ai', port=443): Max retries exceeded with url: /policy-initiatives/public?page=1 (Caused by ProxyError('Unable to connect to proxy', NewConnectionError(""HTTPSConnection(host='127.0.0.1', port=7897): Failed to establish a new connection: [Errno 111] Conn",0,0
 2026-11-13 13:58:12,英国政府网站(gov.uk),https://www.gov.uk/search/all.atom,ok,去重后0条,0,0
+2026-11-13 14:12:58,政府政策聚合-gov-rss,https://cherylchenxue-star.github.io/gov-rss/rss.xml,ok,,11,0
+2026-11-13 14:12:58,NIST-AI新闻,https://www.nist.gov/news-events/news/rss.xml,ok,,40,0
+2026-11-13 14:12:58,欧盟数字战略,https://digital-strategy.ec.europa.eu/en/rss.xml,ok,,10,8
+2026-11-13 14:12:58,UK-DSIT公告,https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology.atom,ok,,20,8
+2026-11-13 14:12:58,EU-AI-Act-Tracker,https://artificialintelligenceact.eu/feed/,ok,,27,0
+2026-11-13 14:12:58,UK-DSIT政策文件,https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology/policies.atom,failed,HTTPError: 406 Client Error: Not Acceptable for url: https://www.gov.uk/government/organisations/department-for-science-innovation-and-technology/policies.atom（该源需代理：请在 config.yaml settings.proxy 填写或设置 HTTPS_PROXY 环境变量后重试）,0,0
+2026-11-13 14:12:58,国家统计局-数据发布,https://www.stats.gov.cn/sj/zxfb/rss.xml,ok,,500,0
+2026-11-13 14:12:58,工信部-政策文件,"https://wap.miit.gov.cn/api-gateway/jpaas-plugins-web-server/front/rss/getinfo?webId=8d828e408d90447786ddbe128d495e9e&columnIds=925fa8f4afd44e53818794ed96d9876e,30f92eeafcfd4685984dfb793a2c5fff",ok,,0,0
+2026-11-13 14:13:03,zhengcelibrary_gw|人工智能|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-11-13 14:13:30,zhengcelibrary_gw|人工智能|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-11-13 14:13:32,zhengcelibrary_gw|生成式人工智能|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-11-13 14:13:55,zhengcelibrary_gw|生成式人工智能|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-11-13 14:13:57,zhengcelibrary_gw|大模型|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-11-13 14:14:49,zhengcelibrary_gw|大模型|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-11-13 14:14:51,zhengcelibrary_gw|智能体|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-11-13 14:15:16,zhengcelibrary_gw|智能体|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-11-13 14:15:18,zhengcelibrary_bm|人工智能|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-11-13 14:16:27,zhengcelibrary_bm|人工智能|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,3
+2026-11-13 14:16:28,zhengcelibrary_bm|生成式人工智能|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-11-13 14:17:40,zhengcelibrary_bm|生成式人工智能|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-11-13 14:17:42,zhengcelibrary_bm|大模型|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-11-13 14:18:38,zhengcelibrary_bm|大模型|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,3
+2026-11-13 14:18:40,zhengcelibrary_bm|智能体|title,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-11-13 14:19:39,zhengcelibrary_bm|智能体|content,https://sousuo.www.gov.cn/search-gov/data,ok,,0,0
+2026-11-13 14:19:47,Federal Register[artificial intelligence],https://www.federalregister.gov/api/v1/documents.json,ok,,0,12
+2026-11-13 14:19:51,Federal Register[AI],https://www.federalregister.gov/api/v1/documents.json,ok,,0,10
+2026-11-13 14:22:58,OECD.AI政策观察站,https://api.oecd.ai/policy-initiatives/public,ok,原始2642条,2642,71
+2026-11-13 14:31:36,英国政府网站(gov.uk),https://www.gov.uk/search/all.atom,ok,去重后1108条,1290,0
