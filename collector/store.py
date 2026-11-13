@@ -34,6 +34,7 @@ AUTOSAVE_EVERY = 500            # 每累计 N 条新数据自动落盘一次
 _lock = threading.RLock()
 _master: Optional[pd.DataFrame] = None
 _guid_index: set = set()
+_label_index: dict = {}      # guid -> DataFrame index label，set_fulltext 走 O(1) 而不是全表扫描
 _new_since_save = 0
 
 
@@ -53,9 +54,16 @@ def _empty_master() -> pd.DataFrame:
     return pd.DataFrame(columns=COLUMNS).astype({c: "object" for c in COLUMNS})
 
 
+def _rebuild_index():
+    """重建 guid 集合与 guid→行标签 映射（加载/合并后必须调用一次）。"""
+    global _guid_index, _label_index
+    _guid_index = set(_master["guid"])
+    _label_index = dict(zip(_master["guid"], _master.index))
+
+
 def load_master(force: bool = False) -> pd.DataFrame:
     """加载主表到内存（单例）。CSV 不存在则返回空表。"""
-    global _master, _guid_index
+    global _master
     with _lock:
         if _master is not None and not force:
             return _master
@@ -68,7 +76,7 @@ def load_master(force: bool = False) -> pd.DataFrame:
             _master = df[COLUMNS]
         else:
             _master = _empty_master()
-        _guid_index = set(_master["guid"])
+        _rebuild_index()
         return _master
 
 
@@ -105,8 +113,11 @@ def save(retries: int = 3, merge: bool = True):
                 # 两边都有的行 → 以本进程内存为准（它可能刚更新过全文）
                 merged = pd.concat([mine_idx, extra]) if len(extra) else mine_idx
                 _master = merged.reset_index(drop=True)
-            except Exception:  # noqa: BLE001 — 合并失败就退回整表覆盖，不阻断保存
-                pass
+                _rebuild_index()
+            except Exception as e:  # noqa: BLE001 — 合并失败就退回整表覆盖，不阻断保存
+                # 以前这里是静默 pass，导致"另一个进程刚写的 281 条被整表覆盖"时毫无线索
+                print(f"⚠️ 保存前合并磁盘数据失败，退回整表覆盖（可能丢并发写入）: "
+                      f"{type(e).__name__}: {e}")
 
         for attempt in range(retries):
             try:
@@ -166,21 +177,32 @@ def insert_policy(rec: dict, keywords_cfg: dict) -> str:
         })
         _master.loc[len(_master)] = row
         _guid_index.add(guid)
+        _label_index[guid] = _master.index[-1]
         _new_since_save += 1
     _maybe_autosave()
     return "new"
+
+
+def _label_of(guid: str):
+    """guid → 行标签；miss 时返回 None（不再做全表布尔扫描）。"""
+    label = _label_index.get(guid)
+    if label is None:
+        # 索引可能因外部改写失效，兜底重建一次
+        _rebuild_index()
+        label = _label_index.get(guid)
+    return label
 
 
 def set_fulltext(guid: str, text: str, status: str = "ok"):
     """回填某条记录的全文（全文抓取线程调用，线程安全）。"""
     with _lock:
         load_master()
-        idx = _master.index[_master["guid"] == guid]
-        if len(idx) == 0:
+        label = _label_of(guid)
+        if label is None:
             return False
-        _master.loc[idx[0], "full_text"] = (text or "")[:FULL_TEXT_MAX_CHARS]
-        _master.loc[idx[0], "fulltext_status"] = status
-        _master.loc[idx[0], "fulltext_crawled_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        _master.loc[label, "full_text"] = (text or "")[:FULL_TEXT_MAX_CHARS]
+        _master.loc[label, "fulltext_status"] = status
+        _master.loc[label, "fulltext_crawled_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return True
 
 
@@ -188,17 +210,17 @@ def patch_extra(guid: str, extra: dict):
     """合并写入 extra_json 的若干键（不覆盖已有键）。"""
     with _lock:
         load_master()
-        idx = _master.index[_master["guid"] == guid]
-        if len(idx) == 0:
+        label = _label_of(guid)
+        if label is None:
             return False
         try:
-            cur = json.loads(_master.loc[idx[0], "extra_json"] or "{}")
+            cur = json.loads(_master.loc[label, "extra_json"] or "{}")
         except json.JSONDecodeError:
             cur = {}
         if not isinstance(cur, dict):
             cur = {}
         cur.update(extra or {})
-        _master.loc[idx[0], "extra_json"] = json.dumps(cur, ensure_ascii=False)
+        _master.loc[label, "extra_json"] = json.dumps(cur, ensure_ascii=False)
     return True
 
 
@@ -206,11 +228,22 @@ def records_missing_fulltext(limit: int = 1000) -> "pd.DataFrame":
     """fulltext_status 不以 ok 开头且有 url 的记录（失败的下轮自动重试）。
 
     注意：`ok:oecd_overview` 这类带后缀的状态也算已抓，不再重试。
+
+    排序：**先抓从没试过的，再抓最久没试过的**。以前直接 head(limit)，
+    永久失败的记录（SPA 仪表盘、死链）会一直霸占前 200 个名额，新记录永远轮不到。
     """
     with _lock:
         df = load_master()
         m = (~df["fulltext_status"].str.startswith("ok")) & (df["url"] != "")
-        return df.loc[m, ["guid", "url", "collection_method", "extra_json"]].head(limit).copy()
+        sub = df.loc[m, ["guid", "url", "collection_method", "extra_json",
+                         "fulltext_crawled_at"]].copy()
+        if sub.empty:
+            return sub.drop(columns=["fulltext_crawled_at"])
+        tried = sub["fulltext_crawled_at"].fillna("").ne("")
+        fresh = sub[~tried]
+        retry = sub[tried].sort_values("fulltext_crawled_at")
+        out = pd.concat([fresh, retry]).head(limit)
+        return out.drop(columns=["fulltext_crawled_at"]).copy()
 
 
 def stats() -> dict:
