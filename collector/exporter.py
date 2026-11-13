@@ -13,6 +13,7 @@
 from datetime import datetime
 
 import re
+import traceback
 
 import pandas as pd
 
@@ -97,8 +98,20 @@ def _overview_frame(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["项目", "数值"])
 
 
-# ---------------- Excel 安全化 ----------------
+# ---------------- Excel / CSV 单元格安全化 ----------------
 _SHEET_BAD = re.compile(r"[\[\]:*?/\\]")
+
+# 控制字符（C0 + DEL + C1）与孤立代理项：openpyxl 遇到直接抛 IllegalCharacterError，
+# 代理项还会让 to_csv(encoding="utf-8-sig") 抛 UnicodeEncodeError。
+# 采集来的标题/正文完全来自外部网页，必须在下游统一清一次。
+# 注意这里**不复用** openpyxl 的 ILLEGAL_CHARACTERS_RE：它只覆盖 C0，
+# 而 C1（\x7f-\x9f，网页正文 UTF-8 被按 latin-1 解码后的典型产物）不在其中，
+# 会在 ExcelWriter 序列化 XML 时才炸。自建正则不受 openpyxl 版本影响。
+_CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff]")
+# 这些前缀开头的单元格会被 Excel/WPS 当公式执行（CSV/公式注入）
+_FORMULA_PREFIX = ("=", "+", "-", "@", "\t", "\r")
+# Excel 单格上限 32,767 字符；留 767 的余量给前缀单引号等包装
+XLSX_CELL_MAX = 32_000
 
 
 def sheet_name(name: str, used: set = None) -> str:
@@ -113,38 +126,76 @@ def sheet_name(name: str, used: set = None) -> str:
     return clean
 
 
-def _xlsx_safe(df: pd.DataFrame) -> pd.DataFrame:
-    """去掉 Excel 不接受的控件字符并截断超长单元格，否则 openpyxl 报 IllegalCharacterError。"""
-    try:
-        from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
-    except Exception:  # noqa: BLE001
-        ILLEGAL_CHARACTERS_RE = None
+def _clean_series(s: pd.Series, limit: int = XLSX_CELL_MAX,
+                  guard_formula: bool = False) -> pd.Series:
+    """向量化清洗一列：转字符串 → 去控制字符 → 截断 → 可选中和公式前缀。
+
+    比旧的 `Series.map(逐元素 python 函数)` 快一个数量级（5,000 行 × 15 列即 7.5 万次调用）。
+    """
+    txt = s.astype("string").fillna("")
+    txt = txt.str.replace(_CTRL_RE, "", regex=True)
+    txt = txt.str.slice(0, limit)
+    if guard_formula:
+        txt = txt.map(lambda v: "'" + v if v[:1] in _FORMULA_PREFIX else v)
+    return txt.astype(object)
+
+
+def _xlsx_safe(df: pd.DataFrame, guard_formula: bool = False) -> pd.DataFrame:
+    """把 DataFrame 清洗成 Excel 可安全写入的形态（不修改入参）。"""
     out = df.copy()
     for col in out.columns:
-        if out[col].dtype == object:
-            def _fix(v):
-                s = "" if v is None else str(v)
-                if ILLEGAL_CHARACTERS_RE is not None:
-                    s = ILLEGAL_CHARACTERS_RE.sub("", s)
-                return s[:32000]
-            out[col] = out[col].map(_fix)
+        if pd.api.types.is_numeric_dtype(out[col]):
+            continue
+        out[col] = _clean_series(out[col], guard_formula=guard_formula)
     return out
 
 
+def _phase(name: str, errors: list, fn, *args, **kwargs):
+    """执行一个导出子任务；失败只记录不中断，保证其余产物照常产出。
+
+    2026-10-30 起 CI 每天在「导出与报告」这一步 2 秒内崩掉，根因之一是
+    某个子产物（Excel 视图）抛异常把整个进程带走，连已经写好的 CSV 快照也没提交，
+    连续 14 天的采集结果全部滞留。这里做最小隔离：核心产物（主表 CSV）仍直连不包，
+    其余分支包进 _phase，单个失败只降级为 warning。
+    """
+    try:
+        return fn(*args, **kwargs)
+    except Exception:  # noqa: BLE001 — 单个产物失败不应连累整轮采集
+        print(f"⚠️ 导出子任务 [{name}] 失败，已跳过：")
+        traceback.print_exc()
+        # 只留最后一行的异常类型+消息，汇总到 errors 里给 __main__ 打印
+        errors.append(f"{name}: {traceback.format_exc().strip().splitlines()[-1][:300]}")
+        # GitHub Actions 会把这些行渲染成注解，云端失败时一眼能看到原因
+        # （公开 API 只能看到 exit code 1，必须靠注解把真实异常带出来）
+        print(f"::warning title=导出失败 {name}::"
+              f"{traceback.format_exc().strip().splitlines()[-1][:200]}")
+        return None
+
+
 def run(since: str = "", xlsx: bool = False, browse: bool = True) -> dict:
+    """导出政策主表三件套，返回 {rows, csv, browse, xlsx, errors}。
+
+    `csv`（含全文的机器读快照）是核心产物，失败直接抛出；
+    `browse` / `xlsx` 是给人看的视图，走 _phase 隔离，坏了不影响快照与后续提交。
+    """
     cfg = load_config()
-    since = since or cfg["settings"]["start_date"]
+    since = str(since or cfg["settings"]["start_date"])
     export_dir = resolve_path(cfg["settings"]["export_dir"])
     export_dir.mkdir(parents=True, exist_ok=True)
 
     df = store.load_master().copy()
-    df = df[df["published_date"].isna() | (df["published_date"] == "") | (df["published_date"] >= since)]
+    # published_date 可能是空串/NaN，统一成 str 再比较，避免类型混用抛 TypeError
+    pub = df["published_date"].astype("string").fillna("")
+    df = df[(pub == "") | (pub >= since)]
     df = df.sort_values("published_date", ascending=False, ignore_index=True)
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out = {"rows": len(df), "csv": "", "browse": "", "xlsx": ""}
+    out = {"rows": len(df), "csv": "", "browse": "", "xlsx": "", "errors": []}
+    errors = out["errors"]
 
-    # ① 主表快照（含全文，机器读）
+    # ① 主表快照（含全文，机器读）—— 核心产物，失败必须暴露
+    # 注意：这里**故意不**加公式前缀中和、也不截断正文，因为它要被下游程序读回，
+    # 加工过的数据会污染内容指纹。给人看的浏览版/Excel 视图才做清洗。
     csv_path = export_dir / f"policy_master_{stamp}.csv"
     df.to_csv(csv_path, index=False, encoding="utf-8-sig")
     out["csv"] = str(csv_path)
@@ -153,44 +204,60 @@ def run(since: str = "", xlsx: bool = False, browse: bool = True) -> dict:
     # ② 浏览版 CSV（Excel/WPS 秒开）
     if browse:
         browse_path = export_dir / f"policy_master_browse_{stamp}.csv"
-        _browse_frame(df).to_csv(browse_path, index=False, encoding="utf-8-sig")
-        out["browse"] = str(browse_path)
-        print(f"📁 浏览版 CSV: {browse_path.name}（{browse_path.stat().st_size / 1e6:.2f} MB，无全文正文，Excel 可直接打开）")
+
+        def _browse():
+            # 标题/摘要来自外部网页，直接落 CSV 时以 = + - @ 开头会被 Excel 当公式执行
+            # （典型后果：双击打开就弹「启用宏/外部数据」，或本地命令被拼进 HYPERLINK）。
+            # 这里和 Excel 视图走同一套清洗，统一加 ' 前缀中和。
+            safe = _xlsx_safe(_browse_frame(df), guard_formula=True)
+            safe.to_csv(browse_path, index=False, encoding="utf-8-sig")
+            out["browse"] = str(browse_path)
+            print(f"📁 浏览版 CSV: {browse_path.name}（{browse_path.stat().st_size / 1e6:.2f} MB，"
+                  f"无全文正文，Excel 可直接打开）")
+
+        _phase("浏览版 CSV", errors, _browse)
 
     # ③ Excel 视图（统计页 + 分国家页 + 全文截断预览）
     if xlsx:
-        view = df.copy()
-        for col in ("published_date", "jurisdiction", "jurisdiction_name", "level",
-                    "issuing_body", "policy_type", "language", "ai_tags", "source_name",
-                    "collection_method", "fulltext_status", "content_hash"):
-            view[col] = view[col].fillna("")
-        view = view.sort_values("published_date", ascending=False)
-        cols = ["title", "url", "summary", "full_text", "published_date", "jurisdiction_name",
-                "level", "issuing_body", "policy_type", "language", "ai_tags", "source_name",
-                "collection_method", "fulltext_status"]
-        view = view[cols].rename(columns=COL_NAMES_ZH)
-        view["摘要"] = view["摘要"].astype(str).str.slice(0, 300)
-        view["全文预览(截断)"] = view["全文预览(截断)"].astype(str).str.slice(0, VIEW_FULLTEXT_CHARS)
+        _phase("Excel 视图", errors, _run_xlsx, df, export_dir, stamp)
 
-        xlsx_path = export_dir / f"政策库视图_{stamp}.xlsx"
-        view = _xlsx_safe(view)
-        with pd.ExcelWriter(xlsx_path, engine="openpyxl") as writer:
-            _xlsx_safe(_overview_frame(df)).to_excel(writer, sheet_name="概览", index=False)
-            view.to_excel(writer, sheet_name="全部", index=False)
-            used = {"概览", "全部"}
-            counts = view["国家/地区"].value_counts()
-            top = list(counts.index[:TOP_COUNTRY_SHEETS])
-            for juris in top:
-                grp = view[view["国家/地区"] == juris]
-                grp.to_excel(writer, sheet_name=sheet_name(juris, used), index=False)
-            rest = view[~view["国家/地区"].isin(top)]
-            if len(rest):
-                rest.to_excel(writer, sheet_name=sheet_name("其他国家", used), index=False)
-        out["xlsx"] = str(xlsx_path)
-        print(f"📁 Excel 视图: {xlsx_path.name}（{xlsx_path.stat().st_size / 1e6:.1f} MB，"
-              f"全文截断为前 {VIEW_FULLTEXT_CHARS} 字预览）")
-
+    if errors:
+        print(f"⚠️ 导出完成但有 {len(errors)} 个子任务失败：" + " | ".join(errors))
     return out
+
+
+def _run_xlsx(df: pd.DataFrame, export_dir, stamp: str):
+    """生成 Excel 视图；独立成函数，便于整体 try/except 隔离。"""
+    view = df.copy()
+    for col in ("published_date", "jurisdiction", "jurisdiction_name", "level",
+                "issuing_body", "policy_type", "language", "ai_tags", "source_name",
+                "collection_method", "fulltext_status", "content_hash"):
+        view[col] = view[col].fillna("")
+    view = view.sort_values("published_date", ascending=False)
+    cols = ["title", "url", "summary", "full_text", "published_date", "jurisdiction_name",
+            "level", "issuing_body", "policy_type", "language", "ai_tags", "source_name",
+            "collection_method", "fulltext_status"]
+    view = view[cols].rename(columns=COL_NAMES_ZH)
+    view["摘要"] = view["摘要"].astype(str).str.slice(0, 300)
+    view["全文预览(截断)"] = view["全文预览(截断)"].astype(str).str.slice(0, VIEW_FULLTEXT_CHARS)
+
+    xlsx_path = export_dir / f"政策库视图_{stamp}.xlsx"
+    view = _xlsx_safe(view, guard_formula=True)
+    with pd.ExcelWriter(xlsx_path, engine="openpyxl") as writer:
+        _xlsx_safe(_overview_frame(df)).to_excel(writer, sheet_name="概览", index=False)
+        view.to_excel(writer, sheet_name="全部", index=False)
+        used = {"概览", "全部"}
+        counts = view["国家/地区"].value_counts()
+        top = list(counts.index[:TOP_COUNTRY_SHEETS])
+        for juris in top:
+            grp = view[view["国家/地区"] == juris]
+            grp.to_excel(writer, sheet_name=sheet_name(juris, used), index=False)
+        rest = view[~view["国家/地区"].isin(top)]
+        if len(rest):
+            rest.to_excel(writer, sheet_name=sheet_name("其他国家", used), index=False)
+    print(f"📁 Excel 视图: {xlsx_path.name}（{xlsx_path.stat().st_size / 1e6:.1f} MB，"
+          f"全文截断为前 {VIEW_FULLTEXT_CHARS} 字预览）")
+    return str(xlsx_path)
 
 
 # ==================== 信号层（六大巨头博客）导出 ====================
@@ -264,11 +331,12 @@ def run_signals(xlsx: bool = True) -> dict:
     df = signal_store.load().copy()
     if df.empty:
         print("⚠️ 信号表为空，跳过导出")
-        return {"rows": 0}
+        return {"rows": 0, "errors": []}
     df = df.sort_values(["company", "published_date"], ascending=[True, False], ignore_index=True)
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out = {"rows": len(df), "csv": "", "browse": "", "xlsx": ""}
+    out = {"rows": len(df), "csv": "", "browse": "", "xlsx": "", "errors": []}
+    errors = out["errors"]
 
     csv_path = export_dir / f"signal_master_{stamp}.csv"
     df.to_csv(csv_path, index=False, encoding="utf-8-sig")
@@ -276,32 +344,50 @@ def run_signals(xlsx: bool = True) -> dict:
     print(f"📁 信号表快照: {csv_path.name}（{len(df)} 条，{csv_path.stat().st_size / 1e6:.2f} MB）")
 
     browse_path = export_dir / f"signal_master_browse_{stamp}.csv"
-    _signal_browse_frame(df).to_csv(browse_path, index=False, encoding="utf-8-sig")
-    out["browse"] = str(browse_path)
-    print(f"📁 信号浏览版: {browse_path.name}（{browse_path.stat().st_size / 1e6:.2f} MB，Excel 可直接打开）")
+
+    def _browse():
+        # 同主表：外部博客标题同样可能以 = + - @ 开头，落 CSV 前中和
+        safe = _xlsx_safe(_signal_browse_frame(df), guard_formula=True)
+        safe.to_csv(browse_path, index=False, encoding="utf-8-sig")
+        out["browse"] = str(browse_path)
+        print(f"📁 信号浏览版: {browse_path.name}（{browse_path.stat().st_size / 1e6:.2f} MB，Excel 可直接打开）")
+
+    _phase("信号浏览版 CSV", errors, _browse)
 
     if xlsx:
-        view = df.copy()
-        for col in ("published_date", "company", "topic_tags", "ai_tags", "source_name",
-                    "collection_method", "fulltext_status", "language"):
-            view[col] = view[col].fillna("")
-        view["signal_layer"] = view["signal_layer"].fillna("").map(lambda x: LAYER_ZH.get(x, x))
-        cols = ["title", "url", "summary", "full_text", "published_date", "company",
-                "signal_layer", "topic_tags", "language", "ai_tags", "source_name",
-                "collection_method", "fulltext_status"]
-        view = view[cols].rename(columns=COL_NAMES_ZH).rename(
-            columns={"company": "公司", "signal_layer": "信号层", "topic_tags": "主题标签"})
-        view["摘要"] = view["摘要"].astype(str).str.slice(0, 300)
-        view["全文预览(截断)"] = view["全文预览(截断)"].astype(str).str.slice(0, VIEW_FULLTEXT_CHARS)
-        xlsx_path = export_dir / f"信号库视图_{stamp}.xlsx"
-        view = _xlsx_safe(view)
-        with pd.ExcelWriter(xlsx_path, engine="openpyxl") as writer:
-            _xlsx_safe(_signal_overview_frame(df)).to_excel(writer, sheet_name="概览", index=False)
-            view.to_excel(writer, sheet_name="全部", index=False)
-            used = {"概览", "全部"}
-            for company, grp in view.groupby("公司", sort=False):
-                grp.to_excel(writer, sheet_name=sheet_name(company, used), index=False)
-        out["xlsx"] = str(xlsx_path)
-        print(f"📁 信号库视图: {xlsx_path.name}（{xlsx_path.stat().st_size / 1e6:.1f} MB）")
+        _phase("信号库 Excel 视图", errors, _run_signals_xlsx, df, export_dir, stamp, out)
 
+    if errors:
+        print(f"⚠️ 信号导出有 {len(errors)} 个子任务失败：" + " | ".join(errors))
     return out
+
+
+def _run_signals_xlsx(df: pd.DataFrame, export_dir, stamp: str, out: dict):
+    """生成信号库 Excel 视图（概览页 + 全部页 + 按公司分页）。
+
+    独立成函数是为了让 run_signals 能用 _phase 整块包住它：
+    哪怕某个公司名过不了 sheet_name 校验，也只丢这一份 xlsx，不丢 CSV。
+    """
+    view = df.copy()
+    for col in ("published_date", "company", "topic_tags", "ai_tags", "source_name",
+                "collection_method", "fulltext_status", "language"):
+        view[col] = view[col].fillna("")
+    view["signal_layer"] = view["signal_layer"].fillna("").map(lambda x: LAYER_ZH.get(x, x))
+    cols = ["title", "url", "summary", "full_text", "published_date", "company",
+            "signal_layer", "topic_tags", "language", "ai_tags", "source_name",
+            "collection_method", "fulltext_status"]
+    view = view[cols].rename(columns=COL_NAMES_ZH).rename(
+        columns={"company": "公司", "signal_layer": "信号层", "topic_tags": "主题标签"})
+    view["摘要"] = view["摘要"].astype(str).str.slice(0, 300)
+    view["全文预览(截断)"] = view["全文预览(截断)"].astype(str).str.slice(0, VIEW_FULLTEXT_CHARS)
+    xlsx_path = export_dir / f"信号库视图_{stamp}.xlsx"
+    view = _xlsx_safe(view, guard_formula=True)
+    with pd.ExcelWriter(xlsx_path, engine="openpyxl") as writer:
+        _xlsx_safe(_signal_overview_frame(df)).to_excel(writer, sheet_name="概览", index=False)
+        view.to_excel(writer, sheet_name="全部", index=False)
+        used = {"概览", "全部"}
+        for company, grp in view.groupby("公司", sort=False):
+            grp.to_excel(writer, sheet_name=sheet_name(company, used), index=False)
+    out["xlsx"] = str(xlsx_path)
+    print(f"📁 信号库视图: {xlsx_path.name}（{xlsx_path.stat().st_size / 1e6:.1f} MB）")
+    return str(xlsx_path)

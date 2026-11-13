@@ -83,9 +83,12 @@ def cmd_fulltext(args) -> int:
 
 def cmd_export(args) -> int:
     from . import exporter
-    exporter.run(since=args.since, xlsx=args.xlsx, browse=not args.no_browse)
-    if args.signals:
-        exporter.run_signals(xlsx=args.xlsx)
+    r = exporter.run(since=args.since, xlsx=args.xlsx, browse=not args.no_browse)
+    s = exporter.run_signals(xlsx=args.xlsx) if args.signals else {}
+    errs = (r.get("errors") or []) + (s.get("errors") or [])
+    if errs:
+        # 主表快照是核心产物，已在 run() 内完成；其余子任务失败只告警，不拖垮整轮采集
+        print(f"⚠️ 导出完成，{len(errs)} 个子任务失败：" + " | ".join(errs))
     return 0
 
 
