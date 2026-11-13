@@ -20,6 +20,11 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      # 统一用北京时间：报告标题、collected_at、导出文件名都按本地时间，避免和本地跑的产物对不上
+      TZ: Asia/Shanghai
+      PYTHONIOENCODING: utf-8
+      PYTHONUNBUFFERED: "1"
     steps:
       - name: 检出 main 分支（代码）
         uses: actions/checkout@v4
@@ -82,7 +87,14 @@ jobs:
           python -m collector report
 
       - name: 提交到 data 分支
+        # 关键：即使前面的导出/报告步骤失败，也要把已采集到的数据推上去，
+        # 否则一次导出异常就会静默丢掉当天的全部采集结果（2026-10-30 ~ 11-13 就丢了 14 天）
+        if: always()
         run: |
+          if [ ! -f data/policy_master.csv ]; then
+            echo "无主表文件，跳过提交"
+            exit 0
+          fi
           rows=$(python -c "import pandas as pd; print(len(pd.read_csv('data/policy_master.csv', dtype=str, keep_default_na=False)))" || echo '?')
           mkdir -p data-branch/data data-branch/exports
           cp data/policy_master.csv data-branch/data/policy_master.csv

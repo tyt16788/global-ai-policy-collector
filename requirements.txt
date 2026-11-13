@@ -1,6 +1,8 @@
-feedparser>=6.0
-pandas>=2.0
-requests>=2.31
-PyYAML>=6.0
-beautifulsoup4>=4.12
-openpyxl>=3.0
+# 全部加上界：pandas 3.x 会改变 str dtype / 写 Excel 的行为，
+# 只写下限等于把每日 CI 押给上游大版本升级（2026-10-30 起连续失败的高度可疑诱因之一）
+feedparser>=6.0,<7
+pandas>=2.0,<3
+requests>=2.31,<3
+PyYAML>=6.0,<7
+beautifulsoup4>=4.12,<5
+openpyxl>=3.1,<4

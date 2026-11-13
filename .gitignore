@@ -29,3 +29,8 @@ venv/
 *.log
 *.tmp
 ~$*
+
+# ===== 本地工具 / 工作目录（不进仓库）=====
+.workbuddy/
+_check.py
+_recrawl.py
