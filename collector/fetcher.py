@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """带重试 / 随机 UA / 代理 / 礼貌延时的统一 HTTP 抓取器。"""
 
-import os
 import random
 import time
 from typing import Optional
@@ -10,7 +9,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from .config import load_config
+from .config import load_config, get_proxy
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -26,7 +25,11 @@ def get_session(force_proxy: Optional[bool] = None) -> requests.Session:
     force_proxy 控制代理策略，用于"只在采需代理的站时才开代理"：
     - None （默认）：沿用 settings.proxy / 环境变量，行为与旧版一致；
     - False：强制直连，连系统 HTTPS_PROXY 也不认（避免国内源被带出代理）；
-    - True ：必须走代理，未配置代理直接报错（该源标记了 needs_proxy）。
+    - True ：优先走代理；**代理不可用时降级直连**（不再抛错）。
+
+    代理是否可用由 config.get_proxy() 判断：它会先探活 loopback 代理。
+    这样 CI（无 127.0.0.1:7897）不会把每个源都打成 ProxyError，
+    本地忘了开 Clash 也能继续跑直连。
     """
     cfg = load_config()
     s = cfg["settings"]
@@ -41,20 +44,18 @@ def get_session(force_proxy: Optional[bool] = None) -> requests.Session:
     session.mount("http://", adapter)
     session.mount("https://", adapter)
 
-    proxy = s.get("proxy") or ""
-    if force_proxy is True and not proxy:
-        proxy = os.environ.get("HTTPS_PROXY", "") or os.environ.get("https_proxy", "")
-    if force_proxy is True and not proxy:
-        session.close()
-        raise RuntimeError("该源标记 needs_proxy，但 settings.proxy 未配置且无 HTTPS_PROXY 环境变量")
+    proxy = get_proxy()
 
     if force_proxy is False:
         # 强制直连：忽略系统/环境变量里的代理
         session.trust_env = False
-    else:
-        proxy = proxy or ""
-        if proxy:
-            session.proxies.update({"http": proxy, "https": proxy})
+    elif proxy:
+        session.proxies.update({"http": proxy, "https": proxy})
+    elif force_proxy is True:
+        # 该源标记了 needs_proxy，但当前环境没有可用代理（CI / 代理未启动）：
+        # 直连仍可能通（云端在墙外），降级比整源失败更划算，日志里留痕即可。
+        session.trust_env = False
+        print("⚠️ 该源标记 needs_proxy，但当前环境无可用代理，改为直连（可能因网络受限而失败）")
     return session
 
 

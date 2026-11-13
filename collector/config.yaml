@@ -16,6 +16,9 @@ settings:
   max_workers: 4
   # 代理设置：只有 needs_proxy: true 的源会用它，其余源强制直连（见 fetcher.get_session）
   # 2026-10-18 实测本机 Clash Verge 端口 7897；换客户端时只改这一行
+  # 注意：config.get_proxy() 会先对这个端口探活，连不上就当没配（CI 里没有本机代理，
+  # 会直接降级直连；本地忘了开 Clash 也不再满屏 ProxyError）。
+  # CI 若需要走代理，设置环境变量 COLLECTOR_PROXY 即可覆盖此处。
   proxy: "http://127.0.0.1:7897"
   # 数据库 / 导出 / 全文目录（相对项目根目录）
   db_path: "data/policy.sqlite"
