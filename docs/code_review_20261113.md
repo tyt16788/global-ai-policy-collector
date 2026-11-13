@@ -64,18 +64,37 @@
 
 > 本次修复不再依赖 openpyxl 的正则：自带 `_CTRL_RE` 覆盖 C0 + C1 + 孤立代理项，与库版本无关。
 
-### 1.4 无法从公开渠道确认的部分
+### 1.4 修复后的实测验证（2026-11-13 手动触发两轮）
 
-GitHub 的作业日志接口需要认证（`/actions/jobs/{id}/logs` 未授权返回 403），
-公开 API 只暴露到 `Process completed with exit code 1.` 这一层，所以"具体抛的是哪个异常"无法在本机确认。
-本次改动已把真实异常以 `::warning::` 注解 + 完整 traceback 打进日志，下一轮即可闭环。
+本机取到凭据后已经能读作业日志，两轮 `workflow_dispatch` 实测结果：
 
-想立刻看到真实 traceback：
+| | run #28（`4c33688`） | run #29（`2f59075`） |
+|---|---|---|
+| 结论 | success | success |
+| 导出与报告 | success（7.6 秒） | success（7.5 秒） |
+| 主表条数 | 5,086 | **5,201（+115）** |
+| 全文 ok | 4,729 | **4,817（+88）** |
+| 信号层 | 1,355 | 1,374 |
+| 四份产物 | 全部产出 | 全部产出 |
+| `ProxyError` 行数 | 数百 | **0** |
+| 全文抓取 | **成功 0 / 失败 200** | 成功 88 / 失败 112 |
 
-```bash
-gh auth login                                   # 只需一次
-gh run view 43179690289 --log-failed -R tyt16788/global-ai-policy-collector
-```
+关键结论有两条：
+
+1. **导出层的崩溃确实被修掉了**：`政策库视图_*.xlsx`（4.3–4.4 MB）、浏览版 CSV、信号库视图全部正常写出，
+   提交步骤把 data 分支从 10-30 直接接到 `a59703f` / `323a0f8`。
+2. **#28 暴露出比崩溃更严重的问题**：`config.yaml` 里写死的 `settings.proxy = http://127.0.0.1:7897`
+   在 Actions runner 上并不存在，凡是 `needs_proxy` 的源、以及**所有**全文抓取都走代理 →
+   全部 `ProxyError`。也就是说 10-30 之后的 CI 就算导出不崩，每天也只是"绿着空转"。
+   已在 `2f59075` 里改为「loopback 代理先探活，连不上就当没配、降级直连」，#29 的 `ProxyError` 归零。
+
+> 副作用：step 7 从 3 分钟涨到 20 分钟（真的在联网抓了，含 CN 源直连超时重试），仍在 120 分钟预算内。
+
+### 1.5 修复前无法从公开渠道确认的部分
+
+GitHub 的作业日志接口需要认证（未授权返回 403），公开 API 只暴露到 `Process completed with exit code 1.`。
+上一轮只能做代码级推断；本轮已用 `GET /actions/jobs/{id}/logs`（带 `Authorization: Bearer`）拿到完整日志，
+并确认 `::warning::` 注解通道可用（#28/#29 均无导出告警，只有 GitHub 自己的 Node 20 弃用提示）。
 
 ---
 
